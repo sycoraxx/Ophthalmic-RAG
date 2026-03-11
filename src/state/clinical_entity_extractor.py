@@ -201,10 +201,7 @@ class ClinicalEntityExtractor:
                 "vitreous", "sclera", "conjunctiva", "eyelid", "retinal pigment epithelium", "RPE"
             ],
             "condition": list(set(v["normalized"] for v in self.EYECLIP_CONDITION_MAP.values() 
-                                 if v["type"] == EntityType.CONDITION)) + [
-                                     "economic blindness", "social blindness", "manifest blindness", 
-                                     "visual impairment", "low vision"
-                                 ],
+                                 if v["type"] == EntityType.CONDITION)),
             "finding": list(set(v["normalized"] for v in self.EYECLIP_CONDITION_MAP.values() 
                                if v["type"] == EntityType.FINDING)),
             "symptom": [

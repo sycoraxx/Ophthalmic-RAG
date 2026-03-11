@@ -58,7 +58,6 @@ class ClinicalSessionState:
     # Aggregated Metadata (Indian context)
     primary_region: OphthalmicRegion = OphthalmicRegion.UNSPECIFIED
     triage_priority: IndianClinicalPriority = IndianClinicalPriority.ROUTINE
-    blindness_category: Optional[str] = None  # e.g., "Economic Blindness", "Social Blindness"
     
     # Topic tracking
     topic_history: List[str] = field(default_factory=list)
@@ -333,28 +332,10 @@ class ClinicalSessionState:
             if entity_priority_val > current_priority_val:
                 self.triage_priority = entity.priority
                 current_priority_val = entity_priority_val
+    
+    def _detect_topic_drift(self, current_turn: int):
         
-        # 3. Detect Blindness Keywords
-        blindness_keywords = {
-            "economic blindness": "Economic Blindness (WHO/NPCB Category 3)",
-            "social blindness": "Social Blindness (WHO/NPCB Category 4)",
-            "manifest blindness": "Manifest Blindness (WHO/NPCB Category 5)"
-        }
-        
-        # Check entities first
-        for entity in entities:
-            for kw, label in blindness_keywords.items():
-                if kw in entity.text.lower():
-                    self.blindness_category = label
-                    return
 
-        # Fallback to text scan if entities missed it
-        if text:
-            text_lower = text.lower()
-            for kw, label in blindness_keywords.items():
-                if kw in text_lower:
-                    self.blindness_category = label
-                    break
     
     def _detect_topic_drift(self, current_turn: int):
         """Detect if conversation has shifted to a new topic."""
@@ -419,9 +400,6 @@ class ClinicalSessionState:
         
         if self.triage_priority != IndianClinicalPriority.ROUTINE:
             parts.append(f"Clinical Priority: {self.triage_priority.value.upper()}")
-            
-        if self.blindness_category:
-            parts.append(f"Visual Impairment Status: {self.blindness_category}")
         
         if self.anatomy_of_interest:
             conf = f" (confidence: {self.anatomy_of_interest.confidence:.2f})"

@@ -79,9 +79,9 @@ streamlit run app/main.py
 ---
 
 ## 📖 Localization Context (India)
-The engine is specifically tuned for Indian Public Health scenarios:
-- **Blindness Categories**: Tracks WHO/NPCB categories (Economic/Social Blindness).
-- **Triage Priority**: Aligns with high-volume clinical practices in India.
+The engine is specifically tuned for Indian Clinical scenarios:
+- **Anatomical Locality**: Maps entities to Anterior/Posterior segment context to guide reasoning.
+- **Triage Priority**: Aligns with high-volume clinical practice (Emergency/Urgent/Elective).
 
 ---
 
