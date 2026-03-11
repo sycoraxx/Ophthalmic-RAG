@@ -1,0 +1,204 @@
+# ── EyeCLIP Vocabulary v4 ──────────────────────────────────────────────────
+# Format: "<modality>, <condition>"
+# Matches EyeCLIP paper prompt format: "color fundus, diabetic retinopathy"
+# All 11 EyeCLIP native modalities covered.
+#
+# OCT (Optical Coherence Tomography) ─────────────────────────────────────────
+OCT, normal macula
+OCT, drusen
+OCT, diabetic macular edema
+OCT, epiretinal membrane
+OCT, macular hole
+OCT, vitreomacular traction
+OCT, central serous chorioretinopathy
+OCT, subretinal fluid
+OCT, intraretinal fluid
+OCT, pigment epithelial detachment
+OCT, retinoschisis
+OCT, choroidal neovascularization
+OCT, geographic atrophy
+OCT, cystoid macular edema
+OCT, outer retinal tubulation
+OCT, retinal detachment
+#
+# CFP (Color Fundus Photography) ──────────────────────────────────────────────
+CFP, normal fundus
+CFP, mild diabetic retinopathy
+CFP, moderate diabetic retinopathy
+CFP, severe non-proliferative diabetic retinopathy
+CFP, proliferative diabetic retinopathy
+CFP, dry age-related macular degeneration
+CFP, wet age-related macular degeneration
+CFP, retinitis pigmentosa
+CFP, Stargardt disease
+CFP, cone dystrophy
+CFP, choroidal melanoma
+CFP, choroidal osteoma
+CFP, CHRPE
+CFP, familial exudative vitreoretinopathy
+CFP, optic disc pit
+CFP, optic nerve hypoplasia
+CFP, morning glory disc
+CFP, optic disc coloboma
+CFP, APMPPE
+CFP, birdshot retinochoroidopathy
+CFP, serpiginous choroiditis
+CFP, retinoblastoma
+CFP, retinopathy of prematurity
+CFP, branch retinal vein occlusion
+CFP, central retinal vein occlusion
+CFP, branch retinal artery occlusion
+CFP, central retinal artery occlusion
+CFP, macular hole
+CFP, epiretinal membrane
+CFP, macular pucker
+CFP, papilledema
+CFP, glaucomatous optic disc cupping
+CFP, optic atrophy
+CFP, hypertensive retinopathy
+CFP, high myopia fundus
+CFP, lattice degeneration
+CFP, subretinal hemorrhage
+CFP, retinal hemorrhage
+CFP, pseudoxanthoma elasticum
+#
+# FFA (Fundus Fluorescein Angiography) ────────────────────────────────────────
+FFA, normal angiography
+FFA, choroidal neovascularization
+FFA, diabetic retinopathy microaneurysms
+FFA, central retinal artery occlusion late phase
+FFA, macular telangiectasia
+FFA, retinoblastoma
+FFA, retinal vasculitis
+FFA, branch retinal vein occlusion
+FFA, central retinal vein occlusion
+FFA, optic disc leakage
+#
+# ICGA (Indocyanine Green Angiography) ────────────────────────────────────────
+ICGA, normal
+ICGA, polypoidal choroidal vasculopathy
+ICGA, central serous chorioretinopathy
+ICGA, choroidal osteoma
+ICGA, choroidal hemangioma
+#
+# FAF (Fundus Autofluorescence) ───────────────────────────────────────────────
+FAF, normal
+FAF, geographic atrophy
+FAF, retinitis pigmentosa
+FAF, fundus flavimaculatus
+FAF, Stargardt disease
+#
+# OUS (Ocular Ultrasound B-Scan) ──────────────────────────────────────────────
+OUS, normal
+OUS, retinal detachment
+OUS, vitreous hemorrhage
+OUS, choroidal melanoma
+OUS, retinoblastoma
+OUS, choroidal detachment
+OUS, vitreous opacities
+#
+# RetCam (Pediatric Retinal Imaging) ─────────────────────────────────────────
+RetCam, normal
+RetCam, retinopathy of prematurity
+RetCam, familial exudative vitreoretinopathy
+RetCam, retinoblastoma
+RetCam, CHRPE
+#
+# slit lamp (Slit Lamp Photography) ──────────────────────────────────────────
+slit lamp, normal anterior segment
+slit lamp, corneal ulcer
+slit lamp, keratoconus
+slit lamp, bacterial keratitis
+slit lamp, fungal keratitis
+slit lamp, acanthamoeba keratitis
+slit lamp, herpes simplex keratitis
+slit lamp, herpes zoster ophthalmicus
+slit lamp, Fuchs endothelial corneal dystrophy
+slit lamp, bullous keratopathy
+slit lamp, corneal edema
+slit lamp, corneal scar
+slit lamp, band keratopathy
+slit lamp, pellucid marginal degeneration
+slit lamp, corneal abrasion
+slit lamp, corneal neovascularization
+slit lamp, arcus senilis
+slit lamp, pterygium
+slit lamp, pinguecula
+slit lamp, anterior uveitis
+slit lamp, hypopyon
+slit lamp, hyphema
+slit lamp, nuclear sclerotic cataract
+slit lamp, cortical cataract
+slit lamp, posterior subcapsular cataract
+slit lamp, pseudoexfoliation syndrome
+slit lamp, pigment dispersion syndrome
+slit lamp, synechiae
+slit lamp, dislocated lens
+slit lamp, iris melanoma
+slit lamp, iris nevus
+slit lamp, bacterial conjunctivitis
+slit lamp, viral conjunctivitis
+slit lamp, allergic conjunctivitis
+slit lamp, giant papillary conjunctivitis
+slit lamp, subconjunctival hemorrhage
+slit lamp, scleritis
+slit lamp, episcleritis
+slit lamp, pseudophakia
+#
+# specular (Specular Microscopy) ──────────────────────────────────────────────
+specular, normal corneal endothelium
+specular, Fuchs endothelial dystrophy
+specular, corneal guttata
+specular, bullous keratopathy
+specular, low endothelial cell count
+#
+# corneal photography (Corneal Topography / Pentacam) ─────────────────────────
+corneal photography, normal cornea
+corneal photography, keratoconus
+corneal photography, pellucid marginal degeneration
+corneal photography, corneal scar
+corneal photography, post-LASIK ectasia
+#
+# external (External Eye Photography) ─────────────────────────────────────────
+# This is a native EyeCLIP modality. Do NOT bypass.
+external, normal external eye
+external, conjunctival injection
+external, red eye
+external, chemosis
+external, subconjunctival hemorrhage
+external, corneal clouding
+external, corneal ulcer visible
+external, hypopyon visible
+external, hyphema visible
+external, leukocoria
+external, ptosis
+external, ectropion
+external, entropion
+external, lagophthalmos
+external, chalazion
+external, hordeolum
+external, blepharitis
+external, trichiasis
+external, madarosis
+external, dermatochalasis
+external, xanthelasma
+external, preseptal cellulitis
+external, periorbital cellulitis
+external, thyroid eye disease
+external, exophthalmos
+external, enophthalmos
+external, strabismus
+external, esotropia
+external, exotropia
+external, hypertropia
+external, nystagmus
+external, anisocoria
+external, corneal foreign body
+external, chemical injury
+external, periorbital ecchymosis
+external, eyelid laceration
+external, basal cell carcinoma of eyelid
+external, squamous cell carcinoma of eyelid
+external, conjunctival melanoma
+external, conjunctival nevus
+external, epibulbar dermoid
