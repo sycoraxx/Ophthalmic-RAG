@@ -62,4 +62,5 @@ tmp/
 /tmp/
 .gemini/
 brain/
+data/processed/*.md
 *.pt
