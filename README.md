@@ -46,21 +46,27 @@ graph TD
 
 ## 🚀 Setup & Installation
 
-### 1. Environment Setup
+### 1. Clone the Repository
+```bash
+git clone https://github.com/sycoraxx/Ophthalmic-RAG.git
+cd Ophthalmic-RAG
+```
+
+### 2. Environment Setup
 ```bash
 conda create -n rag python=3.10
 conda activate rag
-pip install -r requirements.txt
+pip install -r requirements_clean.txt
 ```
 
-### 2. Model Downloads
+### 3. Model Downloads
 This project requires specialized model weights. Place them in the `models/checkpoints/` directory:
 - `medgemma-1.5-4b-it`: The primary medical LLM processor.
 - `MedEmbed-large-v0.1`: Specialized medical embeddings for dense retrieval.
 - `MedCPT-Cross-Encoder`: Medical cross-encoder for semantic reranking.
 - `eyeclip_visual_new.pt`: Fine-tuned EyeCLIP weights for ophthalmic vision tasks. (Download from [EyeCLIP Original Repo](https://github.com/Michi-3000/EyeCLIP))
 
-### 3. Ingestion & Pre-computation
+### 4. Ingestion & Pre-computation
 1. **Document Ingestion**: Place your PDF/Document corpus (e.g., Kanski's Ophthalmology) in `data/corpus/` and run:
    ```bash
    python scripts/chunk_data.py
@@ -71,7 +77,7 @@ This project requires specialized model weights. Place them in the `models/check
    python scripts/embed_labels.py
    ```
 
-### 4. Run the Application
+### 5. Run the Application
 ```bash
 streamlit run app/main.py
 ```
