@@ -521,8 +521,11 @@ class MedGemmaGenerator:
             "6. Keep answer concise (150-250 words).\n"
             "7. If CLINICAL CONTEXT is provided, personalize advice accordingly.\n"
             "8. Maintain continuity with prior conversation topics.\n"
-            "9. If VISUAL FINDINGS provided, weave into explanation if consistent with sources.\n"
-            "10. If IMAGE attached, describe observable features only; do not diagnose.\n"
+            "9. If VISUAL FINDINGS are provided, use them as supporting evidence "
+            "alongside the MEDICAL REFERENCE TEXTS. Do not treat them as standalone diagnosis.\n"
+            "10. If an IMAGE is attached, your interpretation must be grounded in the "
+            "MEDICAL REFERENCE TEXTS. Do not invent findings beyond what EyeCLIP reported "
+            "and what the sources support.\n"
         )
         
         if anatomy_mismatch:
@@ -575,12 +578,13 @@ class MedGemmaGenerator:
             messages, 
             max_new_tokens=768,
             temperature=0.2,          # Keep reasoning tight and grounded
-            top_p=0.85,               # Clamp vocabulary to highly probable clinical tokens
-            do_sample=True,           # Required for temp/top_p to work
+            #top_p=0.85,               # Clamp vocabulary to highly probable clinical tokens
+            do_sample=False,           # Required for temp/top_p to work
             repetition_penalty=1.15,  # Prevent looping in thinking trace
         )
         
-        if "<unused94>thought" in answer or "I cannot answer" in answer.lower():
+        # ✅ AFTER — only kill truly empty/broken outputs
+        if "<unused94>thought" in answer:
             return "I'm sorry, but this question is outside my ophthalmology knowledge base."
         
         return answer

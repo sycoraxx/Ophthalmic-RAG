@@ -257,7 +257,7 @@ class QueryEngine:
 
         context_block = self.generator.build_context_block(context_docs)
 
-        # ── Step 3: Generate Answer ──────────────────────────────────────────
+       # ── Step 3: Generate Answer ──────────────────────────────────────────
         if verbose:
             print("[QueryEngine] Generating patient-friendly answer...")
         
