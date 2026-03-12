@@ -16,6 +16,18 @@ The QueryEngine is loaded ONCE and cached in the Streamlit session.
 
 import sys
 import os
+import argparse
+
+# ─── GPU Selection ────────────────────────────────────────────────────────────
+# Must happen before QueryEngine is imported
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument("--gpus", type=str, default=None, help="Comma-separated list of GPU IDs (e.g., '0' or '2,3')")
+args, _ = parser.parse_known_args()
+
+if args.gpus:
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+    print(f"[Main] Setting CUDA_VISIBLE_DEVICES={args.gpus}")
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
 import time

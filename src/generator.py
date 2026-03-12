@@ -115,11 +115,14 @@ class MedGemmaGenerator:
         generation = outputs[0][input_len:]
         out = self.processor.decode(generation, skip_special_tokens=True).strip()
         
-        # Strip MedGemma reasoning thoughts if they bled into output
+        raw_out = out # Keep for fallback
+        
+        # ─── Cleaning Logic ──────────────────────────────────────────────────
         # 1. Regex for when special tokens are present or literal
         out = re.sub(r'(?s)<unused94>thought.*?(?:<unused95>|\Z)', '', out).strip()
         
         # 2. Heuristic for skip_special_tokens=True which drops <unused94>
+        # Check for both "thought" and "thought:"
         if out.lower().startswith("thought"):
             lines = out.split('\n')
             checklist_idx = -1
@@ -135,7 +138,8 @@ class MedGemmaGenerator:
                     # The actual answer usually starts completely unindented 
                     # Checklist items are usually indented or start with a bullet
                     if line.strip() and not line.startswith(' ') and not line.startswith('\t'):
-                        if re.match(r'^[-*]\s+.*?Yes', line):
+                        # Check if it's a checklist item like "- item: Yes" or "* item: Yes"
+                        if re.match(r'^[-*]\s+.*?:\s*(?:Yes|No)', line):
                             continue
                         end_idx = i
                         break
@@ -147,12 +151,20 @@ class MedGemmaGenerator:
                     out = '\n\n'.join(parts[1:]).strip()
 
         # 3. Last resort fallback: Check if the end of the string is literally just the checklist
-        # which happens if max_new_tokens truncates the response right at the end of the thought block.
         out = re.sub(r'(?i)Constraint Checklist.*?$', '', out, flags=re.DOTALL)
         
-        # Strip trailing newlines or extra asterisks left by the checklist
+        # Strip trailing newlines or extra asterisks/bullets left by the checklist
         out = re.sub(r'^\s*[-*]\s*.*?:\s*Yes\s*$', '', out, flags=re.MULTILINE)
         out = out.strip()
+        
+        # 4. Emergency Fallback: If stripping made it empty, the model might have 
+        # only output the thought/checklist. Return at least something or the original
+        if not out:
+            # If it's empty, maybe the model didn't generate any answer yet. 
+            # We'll return the raw_out but without the thought prefix if possible.
+            out = re.sub(r'(?i)^thought:?\s*', '', raw_out).strip()
+            if not out:
+                return "I'm sorry, I couldn't generate a clear response for this query. Could you please rephrase?"
                     
         return out
 

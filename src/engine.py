@@ -24,7 +24,8 @@ from pathlib import Path
 from typing import Optional, Tuple, List, Union
 
 # ─── GPU Configuration ────────────────────────────────────────────────────────
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3,4"
+if "CUDA_VISIBLE_DEVICES" not in os.environ:
+    os.environ["CUDA_VISIBLE_DEVICES"] = "2,3,4"
 
 from src.retriever import RetinaRetriever
 from src.generator import MedGemmaGenerator

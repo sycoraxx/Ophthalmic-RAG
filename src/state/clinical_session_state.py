@@ -334,10 +334,6 @@ class ClinicalSessionState:
                 current_priority_val = entity_priority_val
     
     def _detect_topic_drift(self, current_turn: int):
-        
-
-    
-    def _detect_topic_drift(self, current_turn: int):
         """Detect if conversation has shifted to a new topic."""
         current_anatomy = self.anatomy_of_interest.value if self.anatomy_of_interest else None
         

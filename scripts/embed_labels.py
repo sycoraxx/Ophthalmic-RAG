@@ -27,12 +27,12 @@ Usage:
 import os
 import sys
 import argparse
-import json
 import torch
-from src.vision import eyeclip
 
 # Allow imports from project root when running as a script
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from src.vision import eyeclip
 
 from src.vision.prompt_templates import GENERIC_TEMPLATES, MODALITY_TEMPLATES
 from src.vision.ophthalmic_taxonomy import build_taxonomy, get_modality_from_label
