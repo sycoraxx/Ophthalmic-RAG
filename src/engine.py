@@ -253,7 +253,41 @@ class QueryEngine:
                 print(f"  [Refined] {retrieval_query}")
 
         # ── Step 2: Retrieve Documents ───────────────────────────────────────
-        context_docs = self.retriever.search(retrieval_query, k=k, verbose=verbose)
+        # When k >= 5, use dual-path retrieval:
+        #   Path A (k-2 slots): refined/rewritten query  → textbook precision
+        #   Path B (2 slots):   raw query + session context → PubMed breadth
+        # This prevents over-technical refinement from suppressing article hits.
+        if k >= 5:
+            k_refined = k - 2
+            k_raw = 2
+
+            # Path A: refined query
+            refined_docs = self.retriever.search(retrieval_query, k=k_refined, verbose=verbose)
+
+            # Path B: raw query augmented with running session context
+            raw_augmented = raw_query
+            if self.enable_session_state and session:
+                ctx_suffix = session.to_query_context()
+                if ctx_suffix:
+                    raw_augmented = f"{raw_query} {ctx_suffix}"
+            if verbose:
+                print(f"[QueryEngine] Dual-path: raw query retrieval for PubMed breadth...")
+                print(f"  [Raw+Context] {raw_augmented}")
+            raw_docs = self.retriever.search(raw_augmented, k=k_raw, verbose=verbose)
+
+            # Merge with deduplication by parent_id
+            seen_pids = {d.metadata.get("parent_id") for d in refined_docs}
+            context_docs = list(refined_docs)
+            for doc in raw_docs:
+                pid = doc.metadata.get("parent_id")
+                if pid not in seen_pids:
+                    context_docs.append(doc)
+                    seen_pids.add(pid)
+            
+            if verbose:
+                print(f"[QueryEngine] Merged: {len(refined_docs)} refined + {len(context_docs) - len(refined_docs)} raw-unique = {len(context_docs)} total")
+        else:
+            context_docs = self.retriever.search(retrieval_query, k=k, verbose=verbose)
 
         # ── Step 2.5: Zero-Recall Fallback ───────────────────────────────────
         if not context_docs:

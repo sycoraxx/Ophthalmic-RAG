@@ -375,8 +375,8 @@ class ClinicalSessionState:
         if is_both_specific and current_anatomy and previous_topic != current_anatomy:
             self.topic_drift_detected = True
             print(f"[State] Topic drift detected at turn {current_turn}: '{previous_topic}' → '{current_anatomy}'")
-        else:
-            # Reset drift flag — no evidence of a genuine topic change
+        elif not self.topic_drift_detected:
+            # Only clear if _update_anatomy hasn't already flagged drift this cycle
             self.topic_drift_detected = False
     
     # ── Query Context Generation ──────────────────────────────────────────
