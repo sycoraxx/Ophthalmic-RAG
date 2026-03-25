@@ -314,13 +314,11 @@ class QueryEngine:
                 session.last_active_turn = current_turn
                 self._persist_session(session)
             
-            # Record empty grounding state for evaluation
-            self.session.state["grounding_verification"] = {"verdict": "UNKNOWN", "flagged_claims": []}
             return (fallback, visual_findings)
 
         context_block = self.generator.build_context_block(context_docs)
 
-       # ── Step 3: Generate Answer ──────────────────────────────────────────
+        # ── Step 3: Generate Answer ──────────────────────────────────────────
         if verbose:
             print("[QueryEngine] Generating patient-friendly answer...")
         
@@ -433,7 +431,7 @@ class QueryEngine:
             if session_path.exists():
                 try:
                     session = ClinicalSessionState.load(str(session_path))
-                except:
+                except Exception:
                     return None
         if session:
             return {

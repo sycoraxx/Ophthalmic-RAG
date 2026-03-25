@@ -579,7 +579,7 @@ class MedGemmaGenerator:
             max_new_tokens=768,
             temperature=0.2,          # Keep reasoning tight and grounded
             #top_p=0.85,               # Clamp vocabulary to highly probable clinical tokens
-            do_sample=False,           # Required for temp/top_p to work
+            do_sample=False,           # Greedy decoding for deterministic, grounded answers
             repetition_penalty=1.15,  # Prevent looping in thinking trace
         )
         

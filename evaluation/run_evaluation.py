@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -73,10 +74,6 @@ def run_single(
     run_llm_judge: bool = True,
 ) -> Dict[str, Any]:
     """Run the pipeline on one question and return all metrics."""
-    import re as _re
-    global re
-    re = _re
-
     from evaluation.metrics import retrieval_metrics
     from evaluation.metrics import generation_metrics
 

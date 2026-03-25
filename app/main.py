@@ -602,7 +602,7 @@ if prompt := st.chat_input("Ask an eye health question..."):
                 turn_id=current_turn,
             )
             
-            session.update_from_entities(entities, current_turn)
+            session.update_from_entities(entities, current_turn, text=answer)
             engine._persist_session(session)
 
         elapsed = time.time() - start_time
