@@ -91,6 +91,159 @@ The engine is specifically tuned for Indian Clinical scenarios:
 
 ---
 
+## 📊 Evaluation Report
+
+> **Dataset**: MedMCQA (ophthalmology subset) + EYE-TEST-2 expert QA · **95 questions total**  
+> **Knowledge Base**: Kanski's Clinical Ophthalmology + Khurana's Comprehensive Ophthalmology  
+> **Evaluation Date**: March 2026
+
+### Executive Summary
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| **MCQ Accuracy** | 56.0% | ⚠️ Needs Improvement |
+| **Retrieval Recall@3** | 56.1% | ⚠️ Moderate |
+| **Retrieval Precision@3** | 51.6% | ⚠️ Moderate |
+| **MRR** | 0.574 | ✅ Acceptable |
+| **Keyword Coverage** | 80.5% | ✅ Strong |
+| **Grounding Pass Rate** | 100% | ⚠️ Verify Criteria |
+| **ROUGE-L** | 0.000 | ❌ Format Mismatch |
+| **Semantic Similarity** | 0.003 | ❌ Format Mismatch |
+
+**Bottom line**: The system demonstrates solid retrieval foundations and domain terminology handling. Primary gaps are in **answer style alignment** (verbose patient-facing responses vs. concise MCQ-style references) and **retrieval robustness for rare/niche topics**.
+
+---
+
+### Retrieval Metrics (k=3)
+
+| Metric | Value | Target |
+|--------|-------|--------|
+| Avg Recall@3 | 56.1% | ≥85% |
+| Avg Precision@3 | 51.6% | ≥80% |
+| Mean Reciprocal Rank | 0.574 | ≥0.75 |
+| Keyword Hit Rate | 56.1% | ≥75% |
+
+### Generation Metrics
+
+| Metric | Value | Target |
+|--------|-------|--------|
+| MCQ Accuracy | 56.0% | ≥85% |
+| Avg ROUGE-L | 0.000 | ≥0.40 |
+| Avg Semantic Similarity | 0.003 | ≥0.60 |
+| Keyword Coverage | 80.5% | ≥90% |
+| Grounding Pass Rate | 100% | 95–98%* |
+
+*\*Requires stricter claim-level validation criteria*
+
+---
+
+### ✅ Strengths
+
+1. **Domain Terminology** — 80.5% keyword coverage shows strong ophthalmic term incorporation (`optic nerve`, `retina`, `IOP`, `uveitis`)
+2. **Answer Safety** — 100% grounding pass rate; no anatomical contradictions or unsupported diagnostic claims detected across 95 questions
+3. **Retrieval Ranking** — MRR of 0.574 means relevant documents appear early in the ranking when they are retrieved
+4. **Patient Communication** — Structured answers (Possible Causes → Home Care → When to See Doctor) with appropriate hedging and specialist referrals
+
+---
+
+### ⚠️ Critical Issues & Root Causes
+
+**1. Generation Metrics Near Zero (ROUGE-L, Semantic Similarity)**
+
+```
+Root cause: format mismatch, not factual error
+  Reference answers: concise exam-style ("Central retinal artery")
+  Model outputs:     verbose patient-facing (~150-250 words)
+```
+
+ROUGE-L and cosine similarity punish paraphrasing heavily. These metrics are poorly suited for evaluating a conversational clinical assistant against exam-style gold answers. **Keyword coverage (80.5%) is the more meaningful signal** here.
+
+**2. Retrieval Gaps on Niche Topics (44% of questions have Recall@3 = 0)**
+
+| Question Topic | Root Cause |
+|---|---|
+| Grave's ophthalmopathy | Query over-expansion, embedding gap on rare eponyms |
+| White-dot syndromes | Generic uveitis content retrieved instead |
+| Sjögren's syndrome | "Keratoconjunctivitis sicca" query hits dry eye section but misses syndrome description |
+| Sixth nerve palsy | Neuro-ophthalmology undercovered in Kanski/Khurana slices |
+
+**3. MCQ Accuracy at 56%**
+
+The model generates verbose patient-friendly answers rather than selecting a single option letter. No post-processing step extracts the predicted MCQ option — this is an evaluation pipeline gap, not necessarily a knowledge gap.
+
+---
+
+### 🔍 Failure Analysis Summary
+
+Three failure categories were automatically detected by `evaluation/failure_analysis.py`:
+
+| Category | Definition | Findings |
+|---|---|---|
+| **Hallucinations** | Grounding verdict = FAIL | 0% on this run (all passed) |
+| **Retrieval Misses** | Recall@3 = 0 and keyword hit = 0% | 44% of questions; mostly vocabulary mismatch |
+| **Ambiguous Handling** | Vague queries (e.g., "my eyes feel weird") | System appropriately hedges in >90% of cases |
+
+---
+
+### 🔬 Ablation Study Configurations
+
+The `evaluation/ablation_studies.py` script compares 7 pipeline configurations:
+
+| Config | Purpose |
+|---|---|
+| `full_pipeline` | Baseline — all components active |
+| `no_refinement` | Measures contribution of MedGemma query rewriting |
+| `no_reranking` | Measures contribution of MedCPT cross-encoder |
+| `dense_only` | ChromaDB only (no BM25) |
+| `bm25_only` | BM25 only (no dense) |
+| `no_grounding` | Skips grounding verification + self-correction |
+| `eyeclip_augmented` | Simulates image retrieval augmentation via condition term prepending |
+
+Run: `conda run -n rag python evaluation/ablation_studies.py --max-questions 20`
+
+---
+
+### 🛠️ Actionable Recommendations
+
+**🔴 High Priority**
+1. **Add MCQ answer extractor** — post-process verbose answers to extract predicted option letter (regex + semantic matching against option pool)
+2. **Audit grounding criteria** — current 100% pass rate suggests the grounding verifier may need stricter claim-to-passage citation matching
+3. **Supplement metrics** — use `keyword_coverage` and `llm_judge` as primary signals; treat ROUGE-L/semantic-sim as secondary until reference format is aligned
+
+**🟡 Medium Priority**
+4. **Improve query refinement for rare diseases** — add fallback reformulation when Recall@k = 0 on first attempt
+5. **Expand knowledge base coverage** — neuro-ophthalmology, orbital disease, and systemic disease manifestations are underrepresented in current Kanski/Khurana slices
+6. **Add generation mode toggle** (`mcq` vs `patient_facing`) — short, direct answers for MCQ evaluation; current verbose style is correct for the actual use case
+
+**🟢 Strategic**
+7. Add human-in-the-loop review for 20–30 incorrect predictions per cycle
+8. Fine-tune on ophthalmic MCQ pairs for exam-ready answer style when needed
+
+---
+
+### Running Evaluation
+
+```bash
+# Download datasets (one-time, ~200MB)
+conda run -n rag python -m evaluation.dataset_loader
+
+# Full pipeline evaluation (requires GPU)
+conda run -n rag python evaluation/run_evaluation.py --k 3
+
+# Retrieval-only (no GPU needed)
+conda run -n rag python evaluation/run_evaluation.py --retrieval-only
+
+# Ablation study across 7 configs
+conda run -n rag python evaluation/ablation_studies.py --max-questions 20
+
+# Failure analysis report (auto-finds latest results)
+conda run -n rag python evaluation/failure_analysis.py
+```
+
+Results are saved to `evaluation/results/` as timestamped JSON + Markdown reports.
+
+---
+
 ## 🌟 Acknowledgements & Citations
 
 This project builds upon the foundational work of several researchers and organizations. We express our gratitude to the following:

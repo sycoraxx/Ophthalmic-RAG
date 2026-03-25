@@ -64,3 +64,4 @@ tmp/
 brain/
 data/processed/*.md
 *.pt
+evaluation/results/

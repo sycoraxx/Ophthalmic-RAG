@@ -1,0 +1,1753 @@
+[
+  {
+    "id": "MEDMCQA_cdeedb04-fbe9-432c-937c-d53ac24475de",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Following endaerectomy on the right common carotid, a patient is found to be blind in the right eye. It is appears that a small thrombus embolized during surgery and lodged in the aery supplying the optic nerve. Which aery would be blocked?",
+    "options": [
+      "A. Central aery of the retina",
+      "B. Infraorbital aery",
+      "C. Lacrimal aery",
+      "D. Nasociliary aretry"
+    ],
+    "correct_answer": "Nasociliary aretry",
+    "correct_option_idx": -1,
+    "explanation": "The central aery of the retina is a branch of the ophthalmic aery. It is the sole blood supply to the retina; it has no significant collateral circulation and blockage of this vessel leads to blindness. The branches of this aery are what you view during a fundoscopic exam. Note: The infraorbital aery is a branch of the maxillary aery. It comes through the infraorbital foramen, inferior to the eye. It supplies the maxillary sinus, the maxillary incisors, canine and premolar teeth, and the skin of the cheek below the orbit. The supraorbital aery is another branch of the maxillary aery. It comes through the supraorbital foramen and supplies blood to the muscles, skin and fascia of the forehead. The lacrimal aery is a branch of the ophthalmic aery that supplies the lacrimal gland. The nasociliary aery doesn't exist, but there is a nasociliary nerve that travels with the ophthalmic aery. Ref: Moon D.A., Foreman K.B., Albeine K.H. (2011). Chapter 18. Orbit. In D.A. Moon, K.B. Foreman, K.H. Albeine (Eds), The Big Picture: Gross Anatomy.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "retina",
+      "optic nerve"
+    ]
+  },
+  {
+    "id": "MEDMCQA_509f300d-f354-48fb-a2c9-fb1a55cb8e00",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Following are the causes of sudden loss of vision except ?",
+    "options": [
+      "A. Angle closure glaucoma",
+      "B. Endophthalmitis",
+      "C. Central serous retinopathy",
+      "D. Corneal ulceration"
+    ],
+    "correct_answer": "Central serous retinopathy",
+    "correct_option_idx": 2,
+    "explanation": "Ans. is 'd' i.e., Corneal ulceration",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cornea"
+    ]
+  },
+  {
+    "id": "MEDMCQA_bf09d252-e987-480b-9a17-fe566ad398b9",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Regarding Sjogren's syndrome, all are true except: September 2010",
+    "options": [
+      "A. Keratoconjuctivitis sicca",
+      "B. Rheumatoid ahritis",
+      "C. Epiphora",
+      "D. Autoimmune in nature"
+    ],
+    "correct_answer": "Rheumatoid ahritis",
+    "correct_option_idx": 1,
+    "explanation": "Ans. C: Epiphora SjOgren's syndrome (also known as \"Mikulicz disease\" and \"Sicca syndrome\", is a systemic autoimmune disease in which immune cells attack and destroy the exocrine glands that produce tears and saliva SjOgren's syndrome can exist as a disorder in its own right (Primary Sjogren's syndrome) or it may develop years after the onset of an associated rheumatic disorder such as rheumatoid ahritis, systemic lupus erythematosus, scleroderma, primary biliary cirrhosis etc. (Secondary SjOgren's syndrome)",
+    "topic": null,
+    "ground_truth_keywords": [
+      "epiphora"
+    ]
+  },
+  {
+    "id": "MEDMCQA_b15c5039-0f3c-4195-8331-35b9632899c7",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Hypersecretory glaucoma is seen in \u2013",
+    "options": [
+      "A. Epidemic dropsy",
+      "B. Marfan's syndrome",
+      "C. Hypertension",
+      "D. Diabetes"
+    ],
+    "correct_answer": "Diabetes",
+    "correct_option_idx": -1,
+    "explanation": "\"In epidemic dropsy, glaucoma is wide angle glaucoma, with normal chamber and angle. Outflow is within normal limits. The queous shows raised level of histamin, prostaglandin and protein suggesting that glaucoma is hypersecretory\". _\u00a0Mukherjee",
+    "topic": null,
+    "ground_truth_keywords": [
+      "glaucoma"
+    ]
+  },
+  {
+    "id": "MEDMCQA_44e3f7ec-ad90-49bc-9f91-54f959bae81b",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Which of the following is true statement regarding human eye",
+    "options": [
+      "A. Cornea cut off wavelength upto 400 nm",
+      "B. Normal eye medium will permit wavelength of 400- 700 nm",
+      "C. Even after cataract surgery UV rays are not penetrated",
+      "D. Lens will not reflect light"
+    ],
+    "correct_answer": "Cornea cut off wavelength upto 400 nm",
+    "correct_option_idx": 0,
+    "explanation": "Ans. b (normal rye medium will permit wavelength of 400- 700 ntn) Ref: yanoff 3rd ed p 383, internet sitesCornea and lens act as special filters absorbing the more energetic wavelength of the electromagnetic spectrum that can damage the retina. Cornea absorbs wavelength below 295nm where as lens absorbs strongly in the long U V B (300 - 315) and most of the UV A (315 - 400) wave-lengths. Eye light transmittance is relatively high in the 400nm-700nm range.",
+    "topic": "Anatomy",
+    "ground_truth_keywords": [
+      "retina",
+      "cornea",
+      "lens"
+    ]
+  },
+  {
+    "id": "MEDMCQA_23b2d44a-f5e5-47b8-9004-ddd6e0c183d8",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Grave's ophthalmopathy mostly presents as September 2010",
+    "options": [
+      "A. Proptosis",
+      "B. Ptosis",
+      "C. Reduced intraocular tension",
+      "D. Increased power of convergence"
+    ],
+    "correct_answer": "Increased power of convergence",
+    "correct_option_idx": -1,
+    "explanation": "Ans. A: Proptosis Graves' ophthalmopathy (also known as thyroid eye disease (TED), dysthyroid/thyroid-associated orbitopathy (TAO), Graves' orbitopathy) is an autoimmune inflammatory disorder affecting the orbit around the eye, characterized by upper eyelid retraction, swelling (edema), redness (erythema), conjunctivitis, reduce dpower convergence and bulging eyes (proptosis).",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_81d4b17e-e48f-43dc-82ee-034548e32fd2",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Which test helps to differentiate between concomitant squint and paralytic squint",
+    "options": [
+      "A. Cover - uncover test",
+      "B. Alternate covertest",
+      "C. Direct cover test",
+      "D. None of the above"
+    ],
+    "correct_answer": "Cover - uncover test",
+    "correct_option_idx": 0,
+    "explanation": "This procedure causes breakdown of binocular fusion mechanism thus helpful to differentiate.",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_2a1c313d-df98-47f8-9d5c-bf439f33f228",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "A patient on amiodarone is diagnosed to have cornea verticillata. What should be management \u2013",
+    "options": [
+      "A. Stop the drug",
+      "B. Penetrating keratoplasty",
+      "C. Lamellar keratoplasty",
+      "D. Observation"
+    ],
+    "correct_answer": "Observation",
+    "correct_option_idx": -1,
+    "explanation": "Cornea Verticillata\n\nThis is a whorl-like opacity in the corneal epithelium seen in patients on long-term treatment with medication such as amiodarone, chloroquine, phenothiazines and indomethacin.\nIt is also seen in patients with Fabry disease and its carrier state. The condition is generally asymptomatic, harmless and reversible on stopping the drug.\nThe whorl-like pattern shows the direction of migration of corneal epithelial cells. Occasionally the condition had been known to cause glare and surface discomfort which response to topical lubricants.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cornea"
+    ]
+  },
+  {
+    "id": "MEDMCQA_44634f4a-e203-402e-9a56-aec9702a1423",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "\"Candle-wax spots\" in the retina are present in",
+    "options": [
+      "A. Sarcoidosis",
+      "B. Toxoplasmosis",
+      "C. Syphilis",
+      "D. Tuberculosis"
+    ],
+    "correct_answer": "Tuberculosis",
+    "correct_option_idx": -1,
+    "explanation": "(A) Sarcoidosis # OCULAR MANIFESTATIONS OF SARCOIDOSIS:> Anterior segment: Conjunctival involvement has been reported in patients with ocular sarcoidosis.> Sarcoidosis granulomas are solitary, yellow \"millet-seed\" nodules.> Anterior uveitis occurs in 22%- 70% of patients with ocular sarcoidosis, and is usually granulomatous & chronic.> Iris nodules have been reported in up to 12.5% of patients with sarcoidosis associated uveitis.> Exacerbations of granulomatous uveitis are often associated with an appearance of fresh iris or fundus nodules.> Posterior synechiae, cataract and glaucoma are common complications.> Corneal band keratopathy develops in a few patients and is usually associated with hypercalcemia.> Posterior segment: The most common manifestations at the posterior segment are vitritis, intermediate uveitis, panuveitis, posterior uveitis, retinal vasculitis & optic nerve involvement. Other manifestations include choroidal nodules & exudative retinal detachment.> Overall, patients with chronic posterior uveitis and panuveitis have significantly more complications than do patients with anterior uveitis.> \"Candle wax drippings\" and \"punched-out\" lesions can be seen in patients with uveitis secondary to sarcoidosis.",
+    "topic": "Miscellaneous",
+    "ground_truth_keywords": [
+      "retina",
+      "cornea",
+      "glaucoma",
+      "cataract",
+      "conjunctiva",
+      "optic nerve",
+      "choroid",
+      "iris",
+      "fundus",
+      "uveitis",
+      "retinal detachment"
+    ]
+  },
+  {
+    "id": "MEDMCQA_ec9dbeb5-1b72-43fd-869c-896778e840e3",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Lens develops from?",
+    "options": [
+      "A. Endoderm",
+      "B. Mesoderm",
+      "C. Surface ectoderm",
+      "D. Neuroectoderm"
+    ],
+    "correct_answer": "Mesoderm",
+    "correct_option_idx": 1,
+    "explanation": "Ans. c (Surface ectoderm). (Ref. Human Embryology by IB Singh, 6th/352)LENS# LENS develops from surface ectoderm.# Compared to the cornea, it has a much lower converging power of 17 diopters because of the relatively similar refractive indices of aqueous humor, lens, and vitreous body (cornea 42 D).# However, the lens is the only part of the refractive apparatus that is adjustable.# Adjustment to near vision (accommodation) therefore involves only the lens.# In addition, the lens functions as a UV filter for wavelengths between 300 and 400 nm and thus has a protective function for the macula.# Notching of the lens = \"pseudocoloboma\".# Wilson's disease can induce a yellow-green lens discoloration (chalcosis/ sunflower cataract).# Granular gold deposits located under the lens (chrysiasis lends) can occasionally occur after prolonged treatment with gold preparations (e. g. in primary chronic polyarthritis ).# Other medications, e.g., amiodarone or chlorpromazine, are sometimes deposited in the lens.# In patients with cataract, glittering cholesterol crystals are not infrequently found in the lens (so-called Christmas tree/ decoration cataract).",
+    "topic": "Lens",
+    "ground_truth_keywords": [
+      "cornea",
+      "cataract",
+      "macula",
+      "lens",
+      "vitreous",
+      "aqueous",
+      "IOP"
+    ]
+  },
+  {
+    "id": "MEDMCQA_b44f4bc6-30c3-4cd1-81b2-f172a886dea9",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "All are causes of white-dot syndrome except:",
+    "options": [
+      "A. Fuch's heterochromic uveitis",
+      "B. VKH syndrome",
+      "C. HIV retinopathy",
+      "D. Sympathetic ophthalmitis"
+    ],
+    "correct_answer": "HIV retinopathy",
+    "correct_option_idx": 2,
+    "explanation": "Ans. Sympathetic ophthalmitis",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_10fa25e5-2afd-4660-bd47-8759e3004d33",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Child with mild squint. Intrauterine, bih history, developmental history till date all normal. Corneal reflex normal. All other eye parameters normal except exaggerated epicanthal fold. Diagnosis ?",
+    "options": [
+      "A. Pseudostrabismus",
+      "B. Accomodative squint",
+      "C. Exophoria",
+      "D. Esophoria"
+    ],
+    "correct_answer": "Esophoria",
+    "correct_option_idx": -1,
+    "explanation": "Ans. is 'a' i.e., Pseudostrabismus Epicantnic fold causes Pseudoesotropia (Pseudostrabismus).",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cornea",
+      "strabismus"
+    ]
+  },
+  {
+    "id": "MEDMCQA_c4dbe11c-2ef0-4043-adcb-5a068e9afe0e",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Most serious complication seen in other eye after traumatic injury to one eye: March 2005, September 2008",
+    "options": [
+      "A. Subconjunctival hemorrhage",
+      "B. Corneal edema",
+      "C. Sympathetic ophthalmia",
+      "D. Sudden loss of vision"
+    ],
+    "correct_answer": "Corneal edema",
+    "correct_option_idx": 1,
+    "explanation": "Ans. C: Sympathetic ophthalmia Sympathetic ophthalmia (SO) is a condition in which serious inflammation attacks the sound eye after injury (including intraocular surgeries) to the other. It is the most dreaded complication of unilateral severe eye injury, as it can leave the patient completely blind. Symptoms may develop from days to several years after a penetrating eye injury. Sympathetic ophthalmia is thought to be an autoimmune inflammatory response toward ocular antigens, specifically a delayed hypersensitivity to melanin-containing structures from the outer segments of the photoreceptor layer of the retina. It is thought that Louis Braille, who injured his left eye as a child, lost vision in his right eye due to SO Floating spots and loss of accommodation are among the earliest symptoms. The disease may progress to severe iridocyclitis with pain and photophobia. Commonly the eye remains relatively painless while the inflammatory disease spreads through the uvea. The retina, however, usually remains uninvolved. Papilledema, secondary glaucoma, vitiligo and poliosis of the eyelashes may accompany SO. Diagnosis is clinical, seeking a history of eye injury. An impoant differential diagnosis is Vogt-Koyanagi-Harada syndrome (VKH), which is thought to have the same pathogenesis, without a history of surgery or penetrating eye injury. Definitive prevention of SO requires prompt (within the first 7 to 10 days following injury) enucleation of the injured eye. Evisceration--the removal of the contents of the globe while leaving the sclera and extraocular muscles intact--is easier to perform, offers long-term orbital stability, and is more aesthetically pleasing. But evisceration may lead to a higher incidence of SO compared to enucleation. Immunosuppressive therapy is the mainstay of treatment for SO. When initiated promptly following injury, it is effective in controlling the inflammation and improving the prognosis.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "retina",
+      "cornea",
+      "glaucoma",
+      "photophobia",
+      "papilledema"
+    ]
+  },
+  {
+    "id": "MEDMCQA_0fcd762f-fc59-486b-b27d-3295dbaf0e2c",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Which among the following is the BEST irrigating fluid during ECCE?",
+    "options": [
+      "A. Ringer lactate",
+      "B. Normal saline",
+      "C. Balanced salt solution",
+      "D. Balanced salt solution + glutathione"
+    ],
+    "correct_answer": "Balanced salt solution",
+    "correct_option_idx": 2,
+    "explanation": "BSS plus a balanced salt solution enhanced with bicarbonate, dextrose and glutathione. It is specially used for surgeries requiring prolonged irrigation such as phacoemulsification, pars plana vitrectomy and automated extracapsular cataract extraction. Balanced sterile solution is a sterile physiologically balanced irrigating fluid. It is the most frequently used solution during ophthalmic surgery to keep the cornea from drying out. BSS plus solution causes less corneal edema and endothelial cell damage following vitrectomy. The glutathione protects against depletion of endothelial ATP levels and maintains the integrity of the cell membrane by counteracting endogenous and exogenous oxidative agents. Ref: Surgical Technology for the Surgical Technologist: A Positive Care Approach By Association of Surgical Technologists page 223. Ocular Toxicity of Intraoperatively Used Drugs and Solutions By Rudolph Marie Matheus Antonius Nuijts page 16. Clinical Ophthalmology: Contemporary Perspectives, 9/e By Gupta page 43.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cornea",
+      "cataract"
+    ]
+  },
+  {
+    "id": "MEDMCQA_1620d0bd-b4a2-4146-9563-195b87dddb5a",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Inclusion body conjunctivitis true is all except:",
+    "options": [
+      "A. Self limiting",
+      "B. Present only in infants",
+      "C. Occurs while passage from bih canal",
+      "D. Caused by chlamydia"
+    ],
+    "correct_answer": "Self limiting",
+    "correct_option_idx": 0,
+    "explanation": "Ans. Present only in infants",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_62409778-b511-41d6-b92f-516152bca1a1",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Yoke muscle pair is",
+    "options": [
+      "A. Rt LR and Rt MR",
+      "B. Rt so and Lt Io",
+      "C. Rt LR and Lt MR",
+      "D. All the above"
+    ],
+    "correct_answer": "Rt so and Lt Io",
+    "correct_option_idx": 1,
+    "explanation": "Right lateral rectus and left medial rectus.\nYolk muscles are pair of muscles one from eye which contracts simultaneously during version movement.",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_d0165435-9190-451d-999f-8e8e0596b44b",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "All are clinical features of chalcosis except",
+    "options": [
+      "A. Kayser - Fleischer ring",
+      "B. Sun - flower cataract",
+      "C. Deposition of golden plaques at the posterior pole",
+      "D. Dalen- fuch's nodules."
+    ],
+    "correct_answer": "Deposition of golden plaques at the posterior pole",
+    "correct_option_idx": 2,
+    "explanation": "Dalen - fuch's nodules are formed due to proliferation of the pigment epithelium ----- sympathetic ophthalmitis.",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_82f52bd9-9d86-4880-bd37-5e126fc39c3f",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "A tumor has the following characteristic retrobulbar location within the muscle cone, well defined capsule, presents with slowly progressive proptosis, easily resectable, occurs most commonly in the 2nd to 4th decade. Most likely diagnosis is -",
+    "options": [
+      "A. Capillary hemangioma",
+      "B. Cavernous hemangioma",
+      "C. Lymhangioma",
+      "D. Hemangiopericytome"
+    ],
+    "correct_answer": "Capillary hemangioma",
+    "correct_option_idx": 0,
+    "explanation": "Ref: Clinical ophthalmology 5th/e p.670 *Cavernous hemangioma is the most common benign, intraconal tumor in adults. *Hemangiopericytoma is also retrobulbar intraconal lesion found in adults but is a rare tumor. Moreover owing to its tendency to invade the adjacent tissues, its margins are less distinct than cavernous hemangioma. *Rest 2 options i.e. Dermoid and Capillary hemangioma are primarily extraconal lesions.",
+    "topic": "Diseases of orbit, Lids and lacrimal apparatus",
+    "ground_truth_keywords": [
+      "IOP"
+    ]
+  },
+  {
+    "id": "MEDMCQA_86281c8e-6384-4402-aa3a-80420e029ef0",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Cause of exudative retinal detachment are:",
+    "options": [
+      "A. Scleritis",
+      "B. Toxaemia of pregnancy",
+      "C. Central serous retinopathy",
+      "D. All"
+    ],
+    "correct_answer": "Central serous retinopathy",
+    "correct_option_idx": 2,
+    "explanation": "Ans. All",
+    "topic": null,
+    "ground_truth_keywords": [
+      "retina",
+      "retinal detachment"
+    ]
+  },
+  {
+    "id": "MEDMCQA_7554130a-14b4-467f-a3be-c7e1805c35bf",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Incomplete closure of palpebral apeure is called: March 2004",
+    "options": [
+      "A. Lagophthalmos",
+      "B. Chalazion",
+      "C. Entropion",
+      "D. Ectropion"
+    ],
+    "correct_answer": "Ectropion",
+    "correct_option_idx": -1,
+    "explanation": "Ans. A i.e. Lagophthalmos",
+    "topic": null,
+    "ground_truth_keywords": [
+      "lagophthalmos"
+    ]
+  },
+  {
+    "id": "MEDMCQA_8080b3aa-ce1f-40d7-a1d4-4518f86a8206",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Most common method of anterior capsulotomy in phacoemulsification",
+    "options": [
+      "A. Can-opener capsulotomy",
+      "B. Intercapsular capsulotomy",
+      "C. Capsulorhexis",
+      "D. Envelop capsulotomy"
+    ],
+    "correct_answer": "Intercapsular capsulotomy",
+    "correct_option_idx": 1,
+    "explanation": "Answer- C. CapsulorhexisThe most commonly used technique for anterior capsulotomy during phacoemulsification is continuous curvilinear capsulorhexis (CCC).",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_05be107d-ad86-436a-89d5-f01907d21e37",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Most common cranial nerve involved in ophthalmoplegic migraine is:",
+    "options": [
+      "A. II nerve",
+      "B. III nerve",
+      "C. V nerve",
+      "D. VI nerve"
+    ],
+    "correct_answer": "II nerve",
+    "correct_option_idx": 0,
+    "explanation": "Ans. III nerve",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_d01029b5-2e28-45ac-93d7-c1a524cd59e9",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "All of the following are true for retinopathy of prematurity except:",
+    "options": [
+      "A. Occurs in premature infants due to late crying",
+      "B. Due to hypoxia there occurs neovascularization followed by fibroproliferation",
+      "C. End result is bilateral blindness",
+      "D. Blindness can be prevented by early diagnosis and ablation of vascular premature retina with cryotherapy or photocoagulation"
+    ],
+    "correct_answer": "Blindness can be prevented by early diagnosis and ablation of vascular premature retina with cryotherapy or photocoagulation",
+    "correct_option_idx": -1,
+    "explanation": "Ans. Occurs in premature infants due to late crying",
+    "topic": null,
+    "ground_truth_keywords": [
+      "retina"
+    ]
+  },
+  {
+    "id": "MEDMCQA_a9f146a8-0c75-4d12-9a71-8851bc43fb95",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Type of cataract in chalcosis is",
+    "options": [
+      "A. Sunflower cataract",
+      "B. Blue dot Cataract",
+      "C. Snowflake cataract",
+      "D. Polychromatic lustre"
+    ],
+    "correct_answer": "Polychromatic lustre",
+    "correct_option_idx": -1,
+    "explanation": "Answer- A. Sunflower cataract",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cataract"
+    ]
+  },
+  {
+    "id": "MEDMCQA_d2562808-8c78-4dce-bfeb-7094dc1eaa0d",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Refsum's syndrome is associated with ?",
+    "options": [
+      "A. Retinitis pigmentosa",
+      "B. Xerophthalmia",
+      "C. Chalcosis",
+      "D. Diabetes retinopathy"
+    ],
+    "correct_answer": "Diabetes retinopathy",
+    "correct_option_idx": -1,
+    "explanation": "Ans. is 'a' i.e., Retinitis pigmentosa Associations of retinitis pigmentosa Ocular associations : These include myopia, primary open angle glaucoma, microphthalmos, conical cornea and posterior subcapsular cataract. Systemic associations : These are in the form of following syndromes :- i) Laurence-Moon-Biedl syndrome : It is characterised by retinitis pigmentosa, obesity, hypogenitalism, polydactyly and mental deficiency. ii) Cockayne's syndrome : It comprises retinitis pigmentosa, progressive infantile deafness, dwarfism, mental retardation, nystagmus and ataxia. iii) Refsum's syndrome : It is characterized by retinitis pigmentosa, peripheral neuropathy and cerebellar ataxia. iv) Usher's syndrome : It includes retinitis pigmentosa and labyrinthine deafness. v) Hallgren's syndrome : It comprises retinitis pigmentosa, vestibulo-cerebellar ataxia, congenital deafness and mental deficiency.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cornea",
+      "glaucoma",
+      "cataract",
+      "myopia",
+      "nystagmus"
+    ]
+  },
+  {
+    "id": "MEDMCQA_6e90b215-167a-448f-89c5-4d05d26c9000",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Glaucoma is caused by -",
+    "options": [
+      "A. Raised intraocular pressure",
+      "B. Raised intracranial Pressure",
+      "C. Intraocular infection",
+      "D. Orbital mass"
+    ],
+    "correct_answer": "Orbital mass",
+    "correct_option_idx": -1,
+    "explanation": "Ans. is 'a' i.e., Raised intraocular pressure The most common risk factor known is increased intraocular pressure (lOP)o Glaucoma is a group of eye diseases causing optic nerve damage i.e., glaucoma is a chronic, progressive optic neuropathy caused by a group of ocular conditions which lead to damage of optic nerveo Optic neuropathy in glaucoma results in a characteristic appearance of optic disc and a specific pattern of irreversible visual field defects, called glaucomatous changes. It is worth noting that raised IOP without optic neuropathy is not referred to as glaucoma, it is simply called ocular hypertension.So, glaucoma is a type of optic neuropathy, which is usually caused by increased IOP.",
+    "topic": "General Considerations - Definition, Classification, Pathogenesis",
+    "ground_truth_keywords": [
+      "glaucoma",
+      "optic nerve",
+      "optic disc",
+      "intraocular pressure",
+      "IOP"
+    ]
+  },
+  {
+    "id": "MEDMCQA_93e16540-7e0c-4dd7-aa21-caeb07a1d676",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "False about stagardt's disease",
+    "options": [
+      "A. Autosomal dominant",
+      "B. No family history",
+      "C. Beaten bronze appearance fundus",
+      "D. ERG and EOG both are normal"
+    ],
+    "correct_answer": "ERG and EOG both are normal",
+    "correct_option_idx": -1,
+    "explanation": "Stagardt's disease is autosomal recessive.",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_79e04d67-af42-4b0e-b242-cd83473eed50",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Apex national institute of ophthalmology is",
+    "options": [
+      "A. Advance eye care PGI Chandigarh",
+      "B. RIO",
+      "C. Dr. R P Centre for Ophthalmic Sciences , Delhi",
+      "D. Shankara Netralaya , Chennai"
+    ],
+    "correct_answer": "RIO",
+    "correct_option_idx": 1,
+    "explanation": "Dr RP Centre for Ophthalmic Sciences, New Delhi has been designated as the apex national institute of ophthalmology.",
+    "topic": "Community Ophthalmology",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_5b6dc8b7-df2e-4cee-8466-bdafd94dc6c6",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Which laser is used in the management of after cataracts:",
+    "options": [
+      "A. Argon",
+      "B. Krypton",
+      "C. Nd-YAG",
+      "D. Excimer"
+    ],
+    "correct_answer": "Krypton",
+    "correct_option_idx": 1,
+    "explanation": "Ans. Nd-YAG",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cataract"
+    ]
+  },
+  {
+    "id": "MEDMCQA_5d7fcdca-98b9-43e6-bfed-edf8891c9ac9",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Blow out fracture of orbit commonly produces",
+    "options": [
+      "A. Deviation of septum",
+      "B. Retinal haemorrhage",
+      "C. Fracture of nasal bones",
+      "D. Fracture of floor of orbit"
+    ],
+    "correct_answer": "Fracture of nasal bones",
+    "correct_option_idx": 2,
+    "explanation": "(D) Fracture of floor of orbit # Blow out fracture of orbit; Intraorbital haemorrhages, proptosis, paralysis of extrinsic muscles and fracture of the floor of the orbit are not infrequent following a blunt injury to the orbital region> Proptosis develops due to reactive oedema and intra-orbital haemorrhage.> Partial or complete ophthalmoplegia occurs as a result of injury to the muscles or due to profuse orbital oedema.> In the fracture of the floor of orbit, the eyeball is depressed into the maxillary antrum & the inferior rectus and inferior oblique muscles are entrapped causing diplopia.> There occurs limitation of upward gaze, and downward gaze may also be reduced because of the pinched inferior rectus muscle in between the chips of the broken bone> A positive forced duction test, downwards and inwards displacement of the globe and radiological evidence virtually confirm the diagnosis of blowout fracture with incarcerated orbital tissue.> The fracture of the base of skull implicates optic foramen and may cause optic atrophy or pulsating exophthalmos.> The fracture of the optic canal is characterised by a wound at the lateral part of the eyebrow, loss of direct homolateral pupillary reaction and hemianopic field defects.> The patient may suffer from epistaxis and varying periods of unconsciousness.> The pallor of the optic disc may be noticed 2-3 weeks after the injury. Serial radiological tomograms taken at one minute intervals may confirm the diagnosis.",
+    "topic": "Miscellaneous",
+    "ground_truth_keywords": [
+      "optic disc"
+    ]
+  },
+  {
+    "id": "MEDMCQA_0872023a-b442-4c33-8fb4-e916e3cbc681",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Patient came to the OPD with recent onset photphobia within 24 hours and sloughing corneal ulcer. There is greenish ulcer base. Which of the following can be the causative organism:",
+    "options": [
+      "A. Acanthamoeba",
+      "B. Nocardia",
+      "C. Pseudomonas",
+      "D. Herpes"
+    ],
+    "correct_answer": "Nocardia",
+    "correct_option_idx": 1,
+    "explanation": "Pseudomonas Ulcer Rapid onset & Greenish ulcer base Produce biofilm that cause resistance MC cause of infection in contact lens users Nocardia ulcer resembles fungal ulcer in its characteristics.",
+    "topic": "Diseases of Cornea",
+    "ground_truth_keywords": [
+      "cornea",
+      "lens"
+    ]
+  },
+  {
+    "id": "MEDMCQA_6d0376b2-01a1-4bb7-a704-26adee194bf5",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Diplopia is not a presenting feature in:",
+    "options": [
+      "A. Manifest squint",
+      "B. Paralytic squint",
+      "C. Latent squint",
+      "D. Anisometropia"
+    ],
+    "correct_answer": "Paralytic squint",
+    "correct_option_idx": 1,
+    "explanation": "C i.e. Latent squint Hetrophoria or latent strabismus is a condition in which there is a tendency to misalignment of the visual axis, which is corrected by the fusional capacity. Often latent squints give no trouble until the demand of near vision increase the strain. No symptoms arise, perhaps, until after reading or writing for an hour or two when the letter seems to run together'. There diplopia, which is often not appreciated as actual double vision, causes blurring of the print. With effo, blurring is overcome, but eventually this becomes impossible, headache supervenes & the work has to be abandoned. Anisometropia presents with - imperfect binocular vision, amblyopia, squint & diplopia (Basak p-68).",
+    "topic": null,
+    "ground_truth_keywords": [
+      "strabismus",
+      "amblyopia"
+    ]
+  },
+  {
+    "id": "MEDMCQA_45764e2c-f28d-4abf-a0fe-f9ddab17a398",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Cataract blindness is:",
+    "options": [
+      "A. Preventable",
+      "B. Curable",
+      "C. Avoidable",
+      "D. Curable and avoidable"
+    ],
+    "correct_answer": "Preventable",
+    "correct_option_idx": 0,
+    "explanation": "Ans. Curable",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cataract"
+    ]
+  },
+  {
+    "id": "MEDMCQA_923384bb-5451-487d-b731-623f9361d295",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Conjunctiva epithelium is:",
+    "options": [
+      "A. Pseudostratified",
+      "B. Stratified columnar",
+      "C. Stratified non keratinized squamous",
+      "D. Transitional"
+    ],
+    "correct_answer": "Stratified columnar",
+    "correct_option_idx": 1,
+    "explanation": "C i.e. Stratified non keratinized epithelium Conjunctival epithelium is stratified non keratinized squamous epitheliumQ. Conjunctiva has palpebral (marginal, tarsal, orbital), bulbar & fornix pas. Marginal palpebral conjunctiva has transitional zone (not epithelium) covered with stratified epithelium with characteristics of both skin & conjunctiva.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "conjunctiva"
+    ]
+  },
+  {
+    "id": "MEDMCQA_a6382989-2dd5-420f-b084-cb909bdebb50",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Bitemporal hemianopic field defect is characteristic of:",
+    "options": [
+      "A. Glaucoma",
+      "B. Optic neuritis",
+      "C. Pituitary tumor",
+      "D. Retinal detachment"
+    ],
+    "correct_answer": "Optic neuritis",
+    "correct_option_idx": 1,
+    "explanation": "Ans. is 'c' i.e. Pituitary tumour Bitemporal hemianopia results due to central (sagittal) lesion of the optic chiasma, common causes of which are tumors of the pituitary gland, craniopharyngioma, suprasellar meningioma, glioma of third ventricle, chiasmal arachnoiditis, third ventricular dilatation.Sites of lesion of visual path and corresponding field defects. Site of lesionField defect1. Optic nerveIpsilateral blindness2. Proximal part of ONIpsilateral blindness with contralateral hemianopia or superior quadrantanopia3. Central lesion of chiasmaBitemporal hemianopia4. Optic tractHomonymous hemianopia5. Temporal lobeQuadrantic homonymous defect6. Optic radiationHomonymous hemianopia7. Anteriorly in occipital cortexContralateral temporal crescentic field defect8. Occipital lobeHomonymous hemianopia (usually sparing the macula)",
+    "topic": "Lesions of the Visual Pathway",
+    "ground_truth_keywords": [
+      "macula",
+      "optic nerve",
+      "IOP",
+      "optic neuritis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_9141d364-5e3d-477a-a94c-c32b09021ebd",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Phenol red thread test is used for dry eye. This test-",
+    "options": [
+      "A. Requires topical anaesthetic agent",
+      "B. Volume of tears isn't measured as it changes color on contact with tears",
+      "C. If the color changes to blue, it depicts surface mucin deficiency",
+      "D. Requiras pH meter for reading result"
+    ],
+    "correct_answer": "Requires topical anaesthetic agent",
+    "correct_option_idx": 0,
+    "explanation": "*Phenol red dye test measures the production of tears without topical anesthesia, as the dye changes its color to red on contact with tears. It doesn't require pH meter for reading the result. Ref: Ophthalmology Yanoff and Duker 4th/e p.277",
+    "topic": "Diseases of orbit, Lids and lacrimal apparatus",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_680f2013-cc37-43f2-9d1f-60c946249a06",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Most common tumor to extend from intracranial to orbit is \u2013",
+    "options": [
+      "A. Astrocytoma",
+      "B. Pituitary adenoma",
+      "C. Craniopharyngioma",
+      "D. Sphenoidal wing meningioma"
+    ],
+    "correct_answer": "Craniopharyngioma",
+    "correct_option_idx": 2,
+    "explanation": "\"Meningiomas are the most common intracranial tumor to extend to the orbit\".......... Ophthalmic oncology\n\nMeningiomas commonly arise from the dura of sphenoid wing, i.e. sphenoid wing meningioma.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "IOP"
+    ]
+  },
+  {
+    "id": "MEDMCQA_1a502be3-9afb-4584-b64b-f3785bda98c2",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Stem cells are present where in cornea -",
+    "options": [
+      "A. Limbus",
+      "B. Stroma",
+      "C. Epithelium",
+      "D. Descmet's membrane"
+    ],
+    "correct_answer": "Descmet's membrane",
+    "correct_option_idx": -1,
+    "explanation": "Answer- A. LimbusLimbal stem cells (also called corneal epithelial stem cells) are stem cells located in the basal epithelial layer of the corneal limbus.Proliferation of limbal stem cells maintains the cornea; for example, replacing cells that are lost tears.Limbal stem cells also prevent the conjunctivalepithelial cells from migrating onto the surface ofthe cornea.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cornea",
+      "conjunctiva"
+    ]
+  },
+  {
+    "id": "MEDMCQA_eeaa0443-e294-4e6c-a749-f4b10c9e097b",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Subconjunctival cyst is seen in?",
+    "options": [
+      "A. Toxoplasmosis",
+      "B. Cysticercosis",
+      "C. Leishmaniasis",
+      "D. Chaga's disease"
+    ],
+    "correct_answer": "Toxoplasmosis",
+    "correct_option_idx": 0,
+    "explanation": "Ans. is b i.e., Cysticercosis Parasitic cysts occurs in subconjunctival cysticercus, hydatid cyst and filarial cyst.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "conjunctiva"
+    ]
+  },
+  {
+    "id": "MEDMCQA_440222b4-4c23-4ae3-b28d-a513db91dbfc",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Sixth cranial nerve palsy causes of left eye causes?",
+    "options": [
+      "A. Accomodation paresis in left gaze",
+      "B. Ptosis of left eye",
+      "C. Adduction weakness of left eye",
+      "D. Diplopia in left gaze"
+    ],
+    "correct_answer": "Adduction weakness of left eye",
+    "correct_option_idx": 2,
+    "explanation": "Ans. is 'd' i.e., Diplopia in left gaze o Sixth nerve supplies lateral rectus, therefore its palsy results in abduction weakness (not adduction weakness)o In left gaze, there is abduction of left eye and adduction of right eye. If there is paralysis of lateral rectus of left eye (6th nerve paralysis), abduction of left eye will not be possible in left gaze, while adduction of right eye is normal. Therefore, there will be diplopia in left gaze.",
+    "topic": "Ocular Motility",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_edc8bc6a-0a6a-43e2-8e6c-71b46979e3c9",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Patient with fixed dilated pupil, with iris atrophy and secondary glaucoma after penetrating keratoplasty is suggestive of:",
+    "options": [
+      "A. Benedict's syndrome",
+      "B. Posner-Shlossman syndrome",
+      "C. Kaufmann's syndrome",
+      "D. Urrets Zavalia syndrome"
+    ],
+    "correct_answer": "Kaufmann's syndrome",
+    "correct_option_idx": 2,
+    "explanation": "Ans. d. Urrets Zavalia syndrome (Ref: style=\"font-size: 1.04761904761905em; font-family: Times New Roman, Times, serif\">icles/PMC1770988)A fixed dilated pupil following penetrating keratoplasty is a well recognized if rare postoperative complication.The mydriasis following penetrating keratoplasty was first described by Castroviejo but it was Urrets-Zavalia who first published his observations on a series of six cases and suggested an association of fixed dilated pupil, iris atrophy, and secondary glaucoma.The pupil can become abnormally dilated following penetrating keratoplasty for keratoconus, particularly if dilating drops are used.In addition to the pupil and iris abnormalities, Urrets-Zavalia also described other features--iris ectropion, pigment dispersion, anterior subcapsular cataract and posterior synechiae.Urrets Zavalia SyndromeUrrets Zavalia Syndrome is characterized by triad of: Secondary glaucoma + Iris atrophy + Fixed dilated pupilQUrrets-Zavalia syndrome (UZS) consists of a fixed dilated pupil associated with iris atrophy.It is a poorly understood complication following penetrating keratoplasty for keratoconus.Posner Shlossman syndromeIt is also called as glaucomatocyclitic crisis.Episodic unilateral mild anterior uveitis, photophobia, reduced vision and colored rings around lights (from secondary corneal edema)Benedict's SyndromeIf red nucleus is involved, tremors and jerky movements occur in contralateral side of the body.This condition combined with ipsilateral 3rd nerve paralysis is called as Benedict's syndrome.McKusick-Kaufmann SyndromeMcKusick-Kaufman syndrome: A rare genetic disorder characterized by hydrometrocolpos (fluid buildup in vagina and uterus), extra fingers and congenital heart defects.",
+    "topic": "Secondary Glaucomas",
+    "ground_truth_keywords": [
+      "cornea",
+      "glaucoma",
+      "cataract",
+      "iris",
+      "photophobia",
+      "uveitis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_bceeefc3-dad5-4457-9a96-1a804093b44c",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Characteristic visual field defect in optic chiasma lesion -",
+    "options": [
+      "A. Homonymous hemianopia",
+      "B. Bitemporal hemianopia",
+      "C. Upper quadrantanopia",
+      "D. Lower quadrantanopia"
+    ],
+    "correct_answer": "Homonymous hemianopia",
+    "correct_option_idx": 0,
+    "explanation": "Ans, is 'b' i.e,. Bitemporal hemianopia Site of lesionVisual field defectOptic nerveBlindnessOptic cbiasmaBitemporal hemianopiaOptic tractIncongruent homonymous hemianopiaLateral geniculate bodyHomonymous hemianopiaOptic radiation (Total)Homonymous hemianopia, sometimes with macular sparingOptic radiation lower fibres (temporal lobe)Homonymous upper quadrantanopiaOptic radiation upper fibres (parietal lobe)Homonymous lower quadrantanopiaVisual cortex (anterior occipital cortex)Homonymous hemianopia with macular sparingOccipital cortex tipHomonymous macular defect",
+    "topic": "Lesions of the Visual Pathway",
+    "ground_truth_keywords": [
+      "macula",
+      "optic nerve"
+    ]
+  },
+  {
+    "id": "MEDMCQA_7b7dbc9c-5bf8-40d0-8c01-9647180f289b",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Uveitis is associated most commonly with :",
+    "options": [
+      "A. Rheumatoid arthritis",
+      "B. Systemic JRA",
+      "C. Pauciarticular JRA",
+      "D. Poly articular JRA"
+    ],
+    "correct_answer": "Systemic JRA",
+    "correct_option_idx": 1,
+    "explanation": "Ans. is 'c' ie Pauciarticular JRA Uveitis can be seen in both pauciarticular and polyarticular JRA but is much more commonly associated with pauciarticular JRA.It is seen in about 20-25% of cases of pauciarticular and only 5% of polyarticular JRA.",
+    "topic": "Uveal Tract",
+    "ground_truth_keywords": [
+      "uveitis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_7b2b29f4-0bb8-4f42-8d49-73df68ebc337",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Keratic precipitates are most commonly seen in -",
+    "options": [
+      "A. Corneal ulcers",
+      "B. Uveitis",
+      "C. Nuclear cataracts",
+      "D. Keratoconus"
+    ],
+    "correct_answer": "Corneal ulcers",
+    "correct_option_idx": 0,
+    "explanation": "Ans. is 'b' i.e., Uveitis o Keratic precipitates (KPs) are proteinaceous cellular deposits occurring at the back of cornea (corneal endothelial deposits). Keratic precipitates are formed by the aggregation of polymorphonuclear cells, lymphocytes, and epitheloid cells. In the setting of uveitis, the bimicrosopic appearance of KP may yeild important diagnostic clues for the identification of the underlying inflammatory disorder1) Mutton fat KP Large, yellowish KPs, are characteristic of granulomatous uveitis .These are composed of epitheloid cells and macrophages. They are large, thick fluffy, lardaceous KPs, having a greasy or waxy appearance.2) Small or medium KPs (granular KPs):- These are composed of lymphocytes and are characteristic of nongranulomatous uveitis. These are small, round and whitish precipitates3) Red KPs:- Composed of RBCs and inflammatory cells. These are seen in hemorrhagic uveitis.4) Old KPs:- In healed uveitis. The above described KPs shrink, fade, become pigmented and irregular in shape with crenated margins.",
+    "topic": "Uveal Tract",
+    "ground_truth_keywords": [
+      "cornea",
+      "uveitis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_11762b50-8c60-4a39-be4b-4cbf3aef7640",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Regarding spring catarrh, all of the following are true, except:",
+    "options": [
+      "A. Cobblestone appearance of conjunctiva",
+      "B. Common in spring months",
+      "C. Limbus conjunctival thickening",
+      "D. Sodium cromoglycate is a form of therapy"
+    ],
+    "correct_answer": "Common in spring months",
+    "correct_option_idx": 1,
+    "explanation": "Limbus conjunctival thickening",
+    "topic": null,
+    "ground_truth_keywords": [
+      "conjunctiva"
+    ]
+  },
+  {
+    "id": "MEDMCQA_653e3d8c-294d-4b1f-b906-70910858c356",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "All of the following causes coloured halos except",
+    "options": [
+      "A. Corneal edema",
+      "B. Retinal degeneration",
+      "C. Foreign body",
+      "D. Steroids"
+    ],
+    "correct_answer": "Corneal edema",
+    "correct_option_idx": 0,
+    "explanation": "Halos can sometimes be a normal response to bright lights. Halos can also be caused by wearing eyeglasses or corrective lenses (contact lenses), or they can be a side effect of cataract or LASIK surgery. ... Thehalos are a result in diffraction of light entering your eye",
+    "topic": "Miscellaneous",
+    "ground_truth_keywords": [
+      "cornea",
+      "cataract",
+      "lens"
+    ]
+  },
+  {
+    "id": "MEDMCQA_4c4b3857-ea2a-4efa-b38a-c93bc6d0fcbe",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Ocular manifestation in giant cell arteritis?",
+    "options": [
+      "A. Arteritic AION",
+      "B. Nonarteritic AION",
+      "C. Papilledema",
+      "D. Horners Syndrome"
+    ],
+    "correct_answer": "Horners Syndrome",
+    "correct_option_idx": -1,
+    "explanation": "Ans. a. Arteritic AIONAION occurs due to interference of blood supply to anterior part of optic nerve (posterior ciliary artery)AION can be clinically differentiated into:Arteritic AIONNonarteritic AION*. Due to giant cell arteritis*. Due to occlusion of short posterior ciliary artery*. Sudden, severe visual loss (6/60)*. Sudden, moderate visual loss (>60/60 non-progressive)*. Most common in females, 7-8th decade*. Most common males, 5th-6th decade*. Premonitory symptoms like pain, Amaurosis Fugax present*. Premonitory symptoms like pain, Amaurosis Fugax absent*. Usually Bilateral-fellow eye affected within days to weeks*. Usually Unilateral (>70%)*. Pale optic disc*. Hyperemic optic with small cup*. Poor prognosis*. Good prognosis",
+    "topic": "Errors of Refraction",
+    "ground_truth_keywords": [
+      "optic nerve",
+      "optic disc"
+    ]
+  },
+  {
+    "id": "MEDMCQA_8b652c87-995b-48e2-94df-d599b42fed18",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Most Common Tumour of Eyelid is:",
+    "options": [
+      "A. Sebaceeous Ca",
+      "B. BCC",
+      "C. SCC",
+      "D. Malignant melanoma"
+    ],
+    "correct_answer": "Sebaceeous Ca",
+    "correct_option_idx": 0,
+    "explanation": "BCC",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_6ced785b-413c-4df8-8ce8-aa579c6d9521",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "What is the treatment of threshold ROP?",
+    "options": [
+      "A. laser photocoagulation",
+      "B. slow reduction in oxygen",
+      "C. retinal reattachment",
+      "D. antioxidants"
+    ],
+    "correct_answer": "antioxidants",
+    "correct_option_idx": -1,
+    "explanation": "Ans is 'a' i.e. Laser Photocoagulation Threshold disease in ROP is defined as stage 3+ ROP in Zones 1 or 2 occupying at least five contiguous clock-hours or eight noncontiguous clock-hours of retina.Treatment of threshold disease is Laser Photocoagulation.'Laser therapy has largely replaced cryotherapy because visual and anatomical outcomes are superior and laser induces less myopia. \" -Kanski 6/e p610Other options:Antioxidants like vit E and slow reduction in 02 has no role in established ROP (threshold disease in our patient); although both are mentioned in few texts for prevention of ROP and even that is not well proven.Retinal reattachment is required when retina is detached like in stage 4 and 5 while Threshold disease is Stage 3 + disease.Also know:\"Low birth weight and decreased gestational age are now considered the primary causative factors for ROP. Supplemental oxygen administration which was for a long time considered as the important causative factor is now considered only a risk factor. \" - Khuran Ophthalmology 4/e p264 \"ROP is confined to those with a birth weight of under 1.5 kg and/or a gestational age of under 32 wks. \"- Parson 21/e P310 The hallmark of retinopathy of prematurity (ROP) is abnormal retinal vasculature. Ophthalmologists diagnose and make decisions about the initial treatment of ROP based on the appearance of the retinal blood vessels. Dilatation and tortuosity of the retinal vessels at the posterior pole is termed 'plus' disease. It is a sign of rapidly progressive ROP and is an indication for early laser ablation of the peripheral avascular retina.Retinopathy of prematurity (ROP)ROP is a bilateral proliferative retinopathy that develops in premature infants due to incomplete vasculogenesis of retina at the time of birth.During normal retinal development, vessels migrate from the optic disc to the ora serrata beginning at 16weeks of gestation. Capillary network is formed differentiating into mature vessels which extend to nasal ora by 36 wks and tangential ora by 39-41 wks.The pathogenesis of ROP begins with premature birth. Exposure of extrauterine environment causes phases of hyperoxia-vasocessation (obliteration of retinal vessels) and hypoxia-Vaso proliferation (neovascularization). VEGF is thought to be the most important molecule involved in the neovascularization.Neovascularization leads to retinal and vitreous changes which ultimately lead to retinal detachment.Classification of ROP:ROP is described using a number of parameters. These are location of the disease into zones (1, 2, and 3), the circumferential extent of the disease based on the clock hours (1-12), the severity of the disease (stage 1-5) and the presence or absence of \"Plus Disease\".Classification on the basis of severity, ROP is divided into 5 stages:-Stage I- the first sign of ROP (stage 1) is the appearance of a thin, fiat, white structure (termed a demarcation line) at the junction of vascularized retina posteriorly and avascular retina anteriorly.Stage II- the demarcation line develops into a pink or white elevation (ridge) of thickened tissueStage III- proliferation of vessels over the ridge and into vitreous (extra vitreal fibrovascular proliferation)Stage IV- partial retinal detachmentIVa- partial detachment with macular sparing IVb- partial detachment with macula involvedStage V- total retinal detachmentClassification on basis of anatomical location:-Since there is a direct correlation between severity of disease and amount of avascular retina, the location of the border between vascularized and avascular retina is an important prognostic sign.3 zones are divided to describe the location of ROP. Location of the border in zone 1 is the most severe disease and in zone 3 least.Zone 1 is defined as a circle, the center of which is the disc, and the radius of which is twice the distance of the disc to the fovea.Zone 2 is a doughnut-shaped region that extends from the anterior border of Zone 1 to within one disc-diameter of the ora serrata nasally and to the anatomic equator temporally.Zone 3 encompasses the residual temporal retina.Plus disease:- As ROP progresses, more and more shunting occurs in the neovascular tissue at the retinal vascular- avascular junction. This increased retinal vascular blood flow results in dilation and tortuosity of the major retinal arteries and veins in the posterior pole - described as \"plus disease\". Plus disease is the hallmark of rapidly progressive ROP and is notated by adding a plus sign after the number of the ROP stage.Management:Most of the cases (approx. 80%) of ROP resolve spontaneously, hence intervention is chosen according to the below given protocol.ROP is divided into Threshold and Pre threshold disease.Threshold disease: It is defined as stage 3+ ROP in Zones 1 or 2 occupying at least five contiguous clock-hours or eight noncontiguous clock-hours of retina.Treatment of Threshold disease is - Laser photocoagulation.Pre threshold disease is divided into 2 types:High risk or Type I - treatment is Laser photocoagulationLow risk or Type II - treatment is Weekly or Twice weekly observationType 1 Pre thresholdType 2 Pre thresholdZone I ROP (any stage) + Zone I, Stage 3 Zone II, Stage 2/3 +Zone I, Stage 1/2 - Zone II, Stage 3 -Laser PhotocoagulationWeekly or Twice weekly observationROP diseases less severe than Pre threshold are followed up.In this question, the child with zone 1, stage II 'plus' ROP falls into Pre threshold disease- Type 1 or high risk type, hence Laser Photocoagulation would be the management of choice.",
+    "topic": "Dystrophies and Degenerations",
+    "ground_truth_keywords": [
+      "retina",
+      "macula",
+      "vitreous",
+      "optic disc",
+      "retinal detachment",
+      "myopia"
+    ]
+  },
+  {
+    "id": "MEDMCQA_6151d0b8-8f10-4375-ad6b-c8ceda5cecee",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Diplopia is usually seen in ?",
+    "options": [
+      "A. Paralytic squint",
+      "B. Non-paralytic squint",
+      "C. Both of the above",
+      "D. None of the above"
+    ],
+    "correct_answer": "None of the above",
+    "correct_option_idx": -1,
+    "explanation": "Ans. is 'a' i.e., Paralytic squint",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_189ac40f-d3d2-4755-a82d-e7f870011105",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Orange-skin cornea results due to:",
+    "options": [
+      "A. Chalcosis",
+      "B. Siderosis",
+      "C. Ammonia burn",
+      "D. Mustard gas"
+    ],
+    "correct_answer": "Ammonia burn",
+    "correct_option_idx": 2,
+    "explanation": "Ans. Mustard gas",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cornea"
+    ]
+  },
+  {
+    "id": "MEDMCQA_2a51c715-b895-4042-81e0-f0e67598fbb3",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "What is irregular astigmatism-",
+    "options": [
+      "A. Perpendicular principal meridians",
+      "B. Non perpendicular principal meridians",
+      "C. Any of the above",
+      "D. None of the above"
+    ],
+    "correct_answer": "Perpendicular principal meridians",
+    "correct_option_idx": 0,
+    "explanation": "Ans. is 'b' i.e., Non perpendicular principal meridians ASTIGMATISMo Astigmatism is a type of refractive error wherein the refraction varies in the different meridia. Consequently, the rays of light entering in the eye cannot converge to a point focus but form focal lines. The refractive error of the astigmatic eye stems from a difference in degree of curvature refraction of the two different meridians (i.e.,, the eye has different focal point in different planes). For example, the image may be clearly focused on retina in the horizontal plane, but not in the vertical plane.o The most common cause of astigmatism is abnormality of corneal curvature. Other less common causes are lenticular (curvature abnormality of lens,oblique position of lens) and retinal (oblique placement of macula). Types of astigmatismBased on axis of the principal meridiansRegular stigmatism : Principal meridians are perpendicularo With-the-rule astigmatism-the vertical meridian is steepest.o Against-the-rule astigmatism-the horizontal meridian is steepest.o Oblique astigmatism-the steepest curve lies in between 120 and 150 degrees and 30 and 60 degrees.Irregular astigmatism - principal meridians are not perpendicular.Based on focus of the principal meridiansSimple astigmatismo Simple hyperopic astigmatism - first focal line is on retina while the second is located behind the retinao Simple myopic astigmatism - first focal line is in front of the retina while the second is on the retina.Compound astigmatismo Compound hyperopic astigmatism-both focal lines are located behind the retina,o Compound myopic astigmatism-both focal lines are located in front of the retina.Mixed astigmatism-focal lines are on both sides of the retina (straddling the retina).Treatment of Astigmatismo Treatment of astigmatism consists : -Optical treatment: - It consists of cylindrical power spectacles or contact lens. Types of contact lenses used are permeable contact tens, Soft toric contact lens (for high degree astigmatism), hybrid lens, i.e,, soft on hard lens, hard contact lens.Surgical treatment: - Non-laser (astigmatic keratotomy) or laser (PRK, LASIK).",
+    "topic": "Types of Errors of Refraction",
+    "ground_truth_keywords": [
+      "retina",
+      "cornea",
+      "macula",
+      "lens",
+      "astigmatism"
+    ]
+  },
+  {
+    "id": "MEDMCQA_2c194873-0e6b-46bb-b97e-91a8320ef492",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Pterygium all are true except:",
+    "options": [
+      "A. Arise from any pa of conjunctiva",
+      "B. Can cause astigmatism",
+      "C. Surgery is treatment of choice",
+      "D. UV exposure is risk factor"
+    ],
+    "correct_answer": "UV exposure is risk factor",
+    "correct_option_idx": -1,
+    "explanation": "Ans. Arise from any pa of conjunctiva",
+    "topic": null,
+    "ground_truth_keywords": [
+      "conjunctiva",
+      "pterygium"
+    ]
+  },
+  {
+    "id": "MEDMCQA_c12f99d7-f993-4384-8330-f5b2e9a18e5c",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Which of the gene is most often implicated in congenital cataract and alpha crystallin mutation?",
+    "options": [
+      "A. GLC3A",
+      "B. PAX6",
+      "C. PITX2",
+      "D. CRYAA"
+    ],
+    "correct_answer": "PITX2",
+    "correct_option_idx": 2,
+    "explanation": "CRYAA is implicated in congenital cataract and alpha crystallin mutation.",
+    "topic": "Cataract",
+    "ground_truth_keywords": [
+      "cataract"
+    ]
+  },
+  {
+    "id": "MEDMCQA_572f1e60-d4de-4ba0-95f8-9a8daea9bc84",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Most common cause of unilateral proptosis is",
+    "options": [
+      "A. Thyrotoxicosis",
+      "B. Retinoblastoma",
+      "C. Intraocular haemorrhage",
+      "D. Raised intracranial tension"
+    ],
+    "correct_answer": "Raised intracranial tension",
+    "correct_option_idx": -1,
+    "explanation": "A i.e. Thyrotoxicosis Grave's ophthalmopathy is most common cause of U/L or B/L proptosis in adults Q between age of 25-50 yrsQ",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_15ece71d-301a-429f-a58d-475056885e75",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Normal axial length of the eye -",
+    "options": [
+      "A. 18mm",
+      "B. 20 mm",
+      "C. 24mm",
+      "D. 28 mm"
+    ],
+    "correct_answer": "20 mm",
+    "correct_option_idx": 1,
+    "explanation": "Ans. is 'c' i.e., 24 mm o The length of the eyeball is approximately 24 mm, So the distances from the cornea / crystalline lens to the retina and the focal length of optical rays focused by the comea/crystalline lens propagating in the vitreous humor and imaging on the retina, are also about 24 mm.Dimensiosn of an adult eyeAnteroposterior diameter (Length)24 mmHorizontal diameter23-5mmVertical diameter23 mmCircumference75 mmVolume6-5 mlWeight7 gm",
+    "topic": "Anatomy",
+    "ground_truth_keywords": [
+      "retina",
+      "cornea",
+      "lens",
+      "vitreous"
+    ]
+  },
+  {
+    "id": "MEDMCQA_e9fce02c-4d78-4ac4-a137-905487398058",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Baby born prematurely at 29 wks, on examination at 42 weeks with ROP, both eyes shows stage 2 zone 1 `plus' disease, how will you manage the patient ?",
+    "options": [
+      "A. Examine the patient after 1 week",
+      "B. Laser photocoagulation of both eyes",
+      "C. Laser photocoagulation of worse eye, follow up of other eye",
+      "D. Vitreoretinal surgery"
+    ],
+    "correct_answer": "Examine the patient after 1 week",
+    "correct_option_idx": 0,
+    "explanation": "The hallmark of retinopathy of prematurity (ROP) is abnormal retinal vasculature. Ophthalmologists diagnose and make decisions about the initial treatment of ROP based on the appearance of the retinal blood vessels. Dilatation and tortuosity of the retinal vessels at the posterior pole is termed plus' disease. It is a sign of rapidly progressive ROP and is an indication for early laser ablation of the peripheral avascular retina.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "retina"
+    ]
+  },
+  {
+    "id": "MEDMCQA_663e2089-fb49-4cea-b962-8abd5de2e607",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Earliest clinical feature of Senile cataract",
+    "options": [
+      "A. Glare",
+      "B. Frequent change of glasses",
+      "C. Coloured halos",
+      "D. Uniocular polyopia"
+    ],
+    "correct_answer": "Uniocular polyopia",
+    "correct_option_idx": -1,
+    "explanation": "Earliest clinical feature of Senile cataract is Glare\nMost common symptom at presentation is Frequent change of glasses",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cataract"
+    ]
+  },
+  {
+    "id": "MEDMCQA_58e100f1-2330-418c-808e-7affdbfb1956",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Features of vernal keratoconjunctivitis are \u2013 a) Papillary hypertrophyb) Follicular hypertrophyc) Herbert's pitsd) Tantra\\'s Spote) Ciliary congestion",
+    "options": [
+      "A. b",
+      "B. c",
+      "C. ac",
+      "D. ad"
+    ],
+    "correct_answer": "ac",
+    "correct_option_idx": 2,
+    "explanation": "Papillary hypertrophy into polygonal papilla is arranged in cobblestone or pavement stone fashion.",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_09a007cc-52a9-4d27-96ef-eeebfdc335f8",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Retinoscopy is done for:",
+    "options": [
+      "A. Examination of Retina",
+      "B. Assessing surface of cornea",
+      "C. Refractive errors",
+      "D. Examination of vitreous"
+    ],
+    "correct_answer": "Assessing surface of cornea",
+    "correct_option_idx": 1,
+    "explanation": "Retinoscopy is an objective method of finding out the error of refraction by the method of neutralization.The end point of neutralization is either no movement or just reversal of the movement of the pupillaryshadow. Depending upon the movement of the red reflexvis-a-vis movement of the plane mirror, Following infrences are drawan No movement of the red reflex indicates myopia of 1D.With movement - emmetropia or hypermetropia or myopia of lessthan 1D.Against movement -myopia of more than 1D.",
+    "topic": "Optics and Errors of Refraction",
+    "ground_truth_keywords": [
+      "cornea",
+      "myopia"
+    ]
+  },
+  {
+    "id": "MEDMCQA_8bdbe442-f7d0-4211-beec-62597d41a0e1",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "SAFE strategy use in",
+    "options": [
+      "A. Inclusion conjunctivitis",
+      "B. Ophthalmia neonatorum",
+      "C. Trachoma",
+      "D. Haemorrhagic conjunctivitis"
+    ],
+    "correct_answer": "Ophthalmia neonatorum",
+    "correct_option_idx": 1,
+    "explanation": "SAFE strategy - for prophylaxis against trachoma and prevention of blindness S - Surgery for trichiasis - Teiary prevention A - Antibiotic - AZITHROMYCIN (D/O/C) - secondary prevention F - Facial hygiene - primary prevention E - Environmental changes - primordial prevention",
+    "topic": "Community Ophthalmology",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_8f0b9096-9005-43ab-8e23-36b881563dbd",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "True regarding amaurosis fugax are all except:",
+    "options": [
+      "A. Transient, recurrent episodes of visual loss",
+      "B. Binocular lesion",
+      "C. Embolus from carotid aery is commonest cause",
+      "D. Ocular examination may be normal"
+    ],
+    "correct_answer": "Transient, recurrent episodes of visual loss",
+    "correct_option_idx": 0,
+    "explanation": "Amaurosis fugax Sudden, temporary and painless monocular visual loss occurring due to a transient failure of retinal circulation. Uniocular lesion Lasts for 2-5 minutes and resolves in the reverse pattern of progression, leaving no residual deficit. Fundus : May be normal or shows retinal ischemia-Retinal oedema and small superficialhaemorrhages Causes : Carotid transient ischaemic attacks (TIA) Embolization of retinal circulation Papilloedema Giant cell aeritis Raynaud's disease Migraine Hypeensive retinopathy Venous stasis retinopathy",
+    "topic": "Investigation in ophthalmology and miscellaneous topics",
+    "ground_truth_keywords": [
+      "retina",
+      "fundus"
+    ]
+  },
+  {
+    "id": "MEDMCQA_92a7ea49-5e3e-4106-8fe5-d6930a2f8caa",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Best way to prevent infection after cataract surgery is",
+    "options": [
+      "A. Antibiotics",
+      "B. Eye brow shaving",
+      "C. Through irrigation",
+      "D. None of the above"
+    ],
+    "correct_answer": "None of the above",
+    "correct_option_idx": -1,
+    "explanation": "Topical antibiotics such as tobramycin or gentamicin or ciprofloxacin QID for 3 days just before surgery is advisable as prophylaxis against endophthalmitis.Ref: Khurana; 4th edition; Pg- 184",
+    "topic": "Lens",
+    "ground_truth_keywords": [
+      "cataract",
+      "endophthalmitis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_e555f8f1-34db-4673-b7a2-c04d76d229c5",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Interstitial keratitis is commonly seen in: March 2005",
+    "options": [
+      "A. Fungal keratitis",
+      "B. Congenital syphilis",
+      "C. Phlyctenular keratitis",
+      "D. Trachoma"
+    ],
+    "correct_answer": "Fungal keratitis",
+    "correct_option_idx": 0,
+    "explanation": "Ans. B: Congenital syphilis It develop from host immune mechanisms to active infections or antigens within the stromal keratocytes. Diseases known to cause interstitial keratitis include: congenital syphilis, herpes simplex, herpes zoster, Epstein-Barr, tuberculosis and leprosy. Clinical manifestations: superficial stromal scarring, necrotizing stromal keratitis and disciform keratitis. As the inflammation subsides, intracorneal blood vessels will regress and become nonperfused vascular channels, which are known as \"ghost\" vessels. These vessels can be readily visualized using slit lamp biomicroscopy and can become active if inflammation recurs.",
+    "topic": null,
+    "ground_truth_keywords": [
+      "cornea",
+      "keratitis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_a8e0c826-eee1-45b4-bf7a-f8e8caf50e67",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "The most commonly seen primary orbital tumour in children is",
+    "options": [
+      "A. Optic nerve sheath meningioma",
+      "B. Retinoblastoma",
+      "C. Rhabdomyosarcoma",
+      "D. Glioma of optic nerve"
+    ],
+    "correct_answer": "Retinoblastoma",
+    "correct_option_idx": 1,
+    "explanation": "Rhabdomyosarcoma It is a highly malignant tumour of the orbit arising from the extraocular muscles. It is the most common primary orbital tumour among children, usually occurring below the age of 15 years (90%). Clinical features: It classically presents as rapidly progressive proptosis of sudden onset in a child of 7-8 years. Massive proptosis due to rhabdomyosarcoma located in the superonasal quadrant (mimmicking acute inflammatory process). The clinical presentation mimics an inflammatory process. The tumour commonly involves the superionasal quadrant; but may invade any pa of the orbit. Ref:- A K KHURANA; pg num:-394",
+    "topic": "Tumors",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_63142155-4e5a-4837-9680-ca8afc3622ea",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Length of naso lacrimal duct is:",
+    "options": [
+      "A. 10 mm",
+      "B. 11 mm",
+      "C. 12 mm",
+      "D. 9 mm"
+    ],
+    "correct_answer": "11 mm",
+    "correct_option_idx": 1,
+    "explanation": "Ans. 12 mm",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_b326349f-be05-4904-ad6e-b661620f54e8",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "A 65yr old male with his of Diabetes and HTN presents Ito OPD with complaints of diplopia and squint on examination secondary detion is seen to be more than primary detion Which of the following is the most probable diagnosis",
+    "options": [
+      "A. Paralytic squint",
+      "B. Incomitant squint",
+      "C. Restrictive squint",
+      "D. Pseudo squint"
+    ],
+    "correct_answer": "Pseudo squint",
+    "correct_option_idx": -1,
+    "explanation": "ref : ak khurana 7th ed",
+    "topic": "All India exam",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_360e78bf-2f2e-4809-a4d7-151c0e2ca47b",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "All are common causes of childhood blindness except",
+    "options": [
+      "A. Malnutrition",
+      "B. Glaucoma",
+      "C. Ophthalmia neonatorum",
+      "D. Congenital dacryocystitis"
+    ],
+    "correct_answer": "Ophthalmia neonatorum",
+    "correct_option_idx": 2,
+    "explanation": "Congenital dacryocystitis [Ref: Khurana 4/e,p 369, 447; Parson's 20/e, p 530-531 Repeat from May07 Causes of impaired vision in childhood Anatomical classification Whole globe: microphthalmos, anophthalmos, phthisis bulbi, atrophic bulbi Cornea: scar, anterior staphyloma, dystrophy Lens: cataract, dislocation, aphakia Uvea: aniridia, coloboma, uveitis Retina: retinopathy of prematurity, retinal dystrophy, retinal detachment, vasculitis Glaucoma: buphthalmos Optic nerve optic atrophy, hypoplasia Other: coical blindness, amblyopia Aetiological classification Hereditary: chromosomal disorders, single-gene defects Intrauterine: congenital rubella, foetal alcohol syndrome Perinatal: ophthalmia neonatorum, retinopathy of prematurity, bih trauma Childhood: vitamin A deficiency, measles, trauma Unclassified: impossible to determine the underlying cause Congenital dacryocystitis (also k/a dacryocystitis neonatorum) is an inflammation of the lacrimal sac occurring in newborn infants, and thus also known as dacryocystitis neonatorum it is d/t stasis of secretion in the lacrimal following congenital blockage in the nasolacrimal duct. congenital dacryocystis presents as - epiphora, usually developing after 7 days of bih, followed by copious mucopurulent discharge from the eyes - swelling on the sac area It may be complicated by - recurrent conjunctivitis - acute on chronic dacryocistitis - lacrimal abscess & fistula formation",
+    "topic": null,
+    "ground_truth_keywords": [
+      "retina",
+      "cornea",
+      "glaucoma",
+      "cataract",
+      "lens",
+      "optic nerve",
+      "uveitis",
+      "amblyopia",
+      "retinal detachment",
+      "epiphora",
+      "dacryocystitis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_0a07801e-06e6-4f6b-90cc-df72bd42bf0c",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Type of laser used for capsulotomy is:",
+    "options": [
+      "A. CO2",
+      "B. Ruby",
+      "C. Nd:YAG",
+      "D. Argon"
+    ],
+    "correct_answer": "Ruby",
+    "correct_option_idx": 1,
+    "explanation": "Ans. Nd:YAG",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_eeebfc32-6319-4485-9c8a-fe4c50d02283",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "A young patient presented with sudden painless loss of vision with systolic murmur over chest, ocular examination reveals - cherry red spot in macula with clear AC, with perception of light, diagnosis:",
+    "options": [
+      "A. Central retinal aery occlusion",
+      "B. Central retinal vein occlusion",
+      "C. Macular choroiditis with infective endocarditis",
+      "D. Central serous retinopathy"
+    ],
+    "correct_answer": "Central serous retinopathy",
+    "correct_option_idx": -1,
+    "explanation": "A i.e. Central retinal aery occlusion All the above can lead to sudden painless loss of vision, but Cherry-Red Spot is seen only in CRAO Sudden Painful Painless * Acute * Macular edema congestive * CRAO Q (central retinal aery (angle occlusion) closure) * CRVO Q (central retinal vein occlusion) glaucoma Q * Central serous retinopathy * Acute * Retinal detachment Q iridocyclitis * Exudative Age Related Macular (uveitis) Q Degeneration (ARMD) * Chemical & * Vitreous & retinal haemorrhage (eg mechanical Eale's disease) Q injury to * Optic neuritis Q eyeball * Methyl alcohol amblyopia * Subluxation or dislocation of lens Gradual Painful Painless * Corneal * Progressive pterygium ulceration * Corneal dystrophy * Chronic * Corneal degeneration simple * Cataract Q (developmental & senile) glaucoma * Chorioretinal degeneration * Chronic * Dry type - Age related macular iridocyclitis degeneration (ARMD) Q (uveitis) * Diabetic retinopathy Q * Retinitis pigmentosa Q * Optic atrophy Q * Refractive errors * Preshyopia Cherry Red Spot Macula is situated at posterior pole with its centre (foveola) being about 2 disc diameters lateral to temporal margin of disc. When retina becomes milky white due to edema, central pa of macular are shows cherry red spot due to vascular choroid shining through the thin retina of this region. Cause are:- 1. Quinine amblyopia 2. Niemann-Pick's diseaseQ 3. Metachromatic leukodystrophyQ 4. Multiple sulfatase deficiencyQ 5. Taysach's diseaseQ (GM2 gangliosidosis type 1) 6. Berlin's oedema / Commotio retinaeQ due to blunt blow on eye 7. Central Retinal Aery occlusion (CRAO)Q (not in CRVO)Q 8. Gaucher's diseaseQ, Goldberg syndrome 9. Generalized gangliosidosis (Gml gangliosidosis type 1)Q 10. Sandhoff disease (Gm2 gangliosidosis type 2, sphingolipidosis) 11. Sialidosis type 1 & 2 (cherry red spot myoclonus syndrome, sphingolipidosis) 12. Farber's disease 13. Hurler's syndrome (Mucopolysaccharidosis 1H), HallervordenSpatz disease 14. Mucopolysachharidosis VII (3 galactosidase deficiency)",
+    "topic": null,
+    "ground_truth_keywords": [
+      "retina",
+      "cornea",
+      "glaucoma",
+      "cataract",
+      "macula",
+      "lens",
+      "vitreous",
+      "choroid",
+      "uveitis",
+      "amblyopia",
+      "diabetic retinopathy",
+      "retinal detachment",
+      "pterygium",
+      "optic neuritis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_8d18558a-0789-4861-9eb1-4db1930325b5",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Best IOL is \u2013",
+    "options": [
+      "A. Anterior chamber",
+      "B. Posterior chamber",
+      "C. Iris supported",
+      "D. Angle supported"
+    ],
+    "correct_answer": "Anterior chamber",
+    "correct_option_idx": 0,
+    "explanation": "The best position of IOL is within the capsular bag in posterior chamber.",
+    "topic": null,
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "MEDMCQA_8d574689-dec7-4d9e-932e-ed80f6edb547",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Treatment of choice for Aniseikonia",
+    "options": [
+      "A. Ohoptic exercise",
+      "B. Spectacles",
+      "C. Surgery",
+      "D. Contact lens"
+    ],
+    "correct_answer": "Surgery",
+    "correct_option_idx": 2,
+    "explanation": "Treatment 1. Optical aniseikonia may be corrected by aniseikonic glasses, contact lenses or intraocular lenses depending upon the situation. 2. For retinal aniseikonia treat the cause. 3. Coical aniseikonia is very difficult to treat. Image : Aniseikonia Reference : A K KHURANA OPHTALMOLOGY,Edition 4,Page-39",
+    "topic": "Optics and refraction",
+    "ground_truth_keywords": [
+      "retina",
+      "lens"
+    ]
+  },
+  {
+    "id": "MEDMCQA_728321d1-4523-461b-9008-815a31d9b9a4",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "The mode of action of Lanatoprost in glaucoma:",
+    "options": [
+      "A. Increasing trabecular outflow",
+      "B. Releasing pupillary block",
+      "C. Decreasing aqueous humour formation",
+      "D. Increasing uveoscleral outflow"
+    ],
+    "correct_answer": "Decreasing aqueous humour formation",
+    "correct_option_idx": 2,
+    "explanation": "Lantanoprost is prastoglandin in nature and decrease the intraocular pressure by increasing uveoscleral outflow of aqueous humour. It is very good adjunctive therapy along with betablockers, dorzolamide and pilocarpine. Ref: A.K KHURANA (2005), Chapter 9, \"Glaucoma\", In the book, \"Opthalmology\", 3rd Edition, Newdelhi, Page 229 ; KDT 5th Edition, Page 88",
+    "topic": null,
+    "ground_truth_keywords": [
+      "glaucoma",
+      "aqueous",
+      "intraocular pressure"
+    ]
+  },
+  {
+    "id": "MEDMCQA_638734b8-f300-4486-83a2-10f15cda4db7",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Temporal pallor in optic disc seen in all except",
+    "options": [
+      "A. Optic neuritis",
+      "B. Compression of optic nerve",
+      "C. Leber's hereditary optic neuritis",
+      "D. Glaucoma"
+    ],
+    "correct_answer": "Leber's hereditary optic neuritis",
+    "correct_option_idx": 2,
+    "explanation": "Optic atrophy, pallor of the optic nerve head, is a sign found in patients with visual loss due to pathology of the optic nerve or retinal ganglion cells. ... It refers topallor of the optic disc which results from irreversible damage to the retinal ganglion cells and axons. It is commonly seen in Optic neuritis Compress of optic nerve Leber's hereditary optic neuritis Ref AK khurana 6/e p459",
+    "topic": "Vitreous and retina",
+    "ground_truth_keywords": [
+      "retina",
+      "optic nerve",
+      "optic disc",
+      "optic neuritis"
+    ]
+  },
+  {
+    "id": "MEDMCQA_c6cdd595-9315-4c11-88bf-605e0fe1d567",
+    "source": "medmcqa",
+    "category": "mcq",
+    "question": "Drugs causing macular toxicity when given intravitreally-",
+    "options": [
+      "A. Gentamycin",
+      "B. Vancomycin",
+      "C. Dexamethasone",
+      "D. Ceftazidime"
+    ],
+    "correct_answer": "Ceftazidime",
+    "correct_option_idx": -1,
+    "explanation": "Ans. is 'a' i.e., Gentamycino Intravitreal aminoglycosides (gentamycin, amikacin) are a reported cause of macular toxicity.o Aminoglycosides induced macular toxicity is thought to be partially due to the gravity-induced settling of drugs on the macula in supine position.o This may result in a higher concentration of drug locally at the macula.",
+    "topic": "Drugs",
+    "ground_truth_keywords": [
+      "macula"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_00",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is the best therapy to start on a patient with a diagnosis of primary open-angle glaucoma?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "glaucoma"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_01",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "should I do SLT or medications first for a glaucoma patient?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "glaucoma"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_02",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is the best MIGS procedure to reduce intraocular pressure?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "intraocular pressure"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_03",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is better, a trabeculectomy or a tube shunt procedure?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "EYE_TEST2_04",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is the best way to reduce the incidence of postoperative endophthalmitis after cataract surgery?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "cataract",
+      "endophthalmitis"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_05",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "how do I reduce the risk of complications on high myopes when performing cataract surgery?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "cataract"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_06",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is the best lens to implant after cataract surgery?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "cataract",
+      "lens"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_07",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is cataract surgery's impact on intraocular pressure? ",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "cataract",
+      "intraocular pressure"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_08",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is the best method for retinal detachment repair?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "retina",
+      "retinal detachment"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_09",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "is pneumatic retinopexy as effective as vitrectomy for retinal detachment repair?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "retina",
+      "retinal detachment"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_10",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "when should a patient with an epiretinal membrane have surgery?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "retina"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_11",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "when should a patient with a macular hole have surgery?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "macula"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_12",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is the best initial treatment for an eye with new-onset neovascular age-related macular degeneration?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "macula",
+      "macular degeneration"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_13",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is the best treatment for center-involved diabetic macular edema?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "macula"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_14",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "is there anything that can slow down myopic progression?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "EYE_TEST2_15",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "when should I operate on a child with esotropia?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "EYE_TEST2_16",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "when should I operate on a child with exotropia?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "EYE_TEST2_17",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "when should I operate on a child with strabismus?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": [
+      "strabismus"
+    ]
+  },
+  {
+    "id": "EYE_TEST2_18",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "what is the best treatment for thyroid eye disease?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": []
+  },
+  {
+    "id": "EYE_TEST2_19",
+    "source": "eye_test2",
+    "category": "open_ended",
+    "question": "is orbital decompression or tepezza more effective for thyroid eye disease?",
+    "options": [],
+    "correct_answer": "",
+    "correct_option_idx": null,
+    "explanation": "Given your profession as an ophthalmologist, please provide a detailed and comprehensive response to the question.",
+    "topic": "Ophthalmology \u2014 Expert Level",
+    "ground_truth_keywords": []
+  }
+]
