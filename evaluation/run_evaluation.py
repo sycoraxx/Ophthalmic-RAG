@@ -46,11 +46,21 @@ def _mcq_answer_correct(answer: str, entry: dict) -> bool:
     label = ["A", "B", "C", "D"][idx]
     correct_text = entry["correct_answer"].lower()
     answer_lower = answer.lower()
-    # Accept: "A", "option A", contains correct text
-    return (
-        re.search(rf"\b{label}\b", answer, re.IGNORECASE) is not None
-        or correct_text in answer_lower
-    )
+    # 1. Simple fast match (if the model happens to just output "A" or the exact string)
+    if re.search(rf"\b{label}\b", answer, re.IGNORECASE) or correct_text in answer_lower:
+        return True
+        
+    # 2. Advanced zero-shot extraction extraction
+    try:
+        from src.evaluator import get_evaluator
+        evaluator = get_evaluator()
+        extracted_idx = evaluator.extract_mcq_choice(answer, entry["options"])
+        if extracted_idx is not None:
+            return extracted_idx == idx
+    except Exception as e:
+        print(f"      [Eval] Warning: Zero-shot extraction failed: {e}")
+        
+    return False
 
 
 # ── Per-question pipeline run ─────────────────────────────────────────────────
@@ -67,8 +77,8 @@ def run_single(
     global re
     re = _re
 
-    from evaluation.metrics.retrieval_metrics import compute_retrieval_metrics
-    from evaluation.metrics.generation_metrics import compute_generation_metrics
+    from evaluation.metrics import retrieval_metrics
+    from evaluation.metrics import generation_metrics
 
     question = entry["question"]
     if entry["category"] == "mcq":
@@ -113,8 +123,8 @@ def run_single(
     ]
 
     # ── Retrieval metrics ────────────────────────────────────────────────────
-    retrieval_metrics = compute_retrieval_metrics(retrieved_docs, entry, k=k)
-    result["retrieval_metrics"] = retrieval_metrics
+    retrieval_metrics_result = retrieval_metrics.compute_retrieval_metrics(retrieved_docs, entry, k=k)
+    result["retrieval_metrics"] = retrieval_metrics_result
 
     if retrieval_only or not retrieved_docs:
         result["elapsed_sec"] = round(time.time() - t0, 2)
@@ -142,7 +152,7 @@ def run_single(
         result["grounding"] = {"verdict": "ERROR", "error": str(e)}
 
     # ── Generation metrics ───────────────────────────────────────────────────
-    gen_metrics = compute_generation_metrics(
+    gen_metrics = generation_metrics.compute_generation_metrics(
         answer=answer,
         question_entry=entry,
         generator=engine.generator if run_llm_judge else None,
@@ -152,10 +162,7 @@ def run_single(
 
     # MCQ accuracy
     if entry["category"] == "mcq":
-        result["mcq_correct"] = bool(re.search(
-            rf"\b{['A','B','C','D'][entry['correct_option_idx']]}\b",
-            answer, re.IGNORECASE
-        ) or entry["correct_answer"].lower() in answer.lower())
+        result["mcq_correct"] = _mcq_answer_correct(answer, entry)
 
     result["elapsed_sec"] = round(time.time() - t0, 2)
     return result

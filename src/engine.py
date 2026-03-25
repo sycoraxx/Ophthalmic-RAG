@@ -244,15 +244,33 @@ class QueryEngine:
         # ── Step 2: Retrieve Documents ───────────────────────────────────────
         context_docs = self.retriever.search(retrieval_query, k=k, verbose=verbose)
 
+        # ── Step 2.5: Zero-Recall Fallback ───────────────────────────────────
+        if not context_docs:
+            if verbose:
+                print(f"[QueryEngine] ⚠️ Zero docs retrieved for '{retrieval_query}'. Triggering fallback expansion...")
+            # Generate a broader query using synonyms/hypernyms
+            broad_query = self.generator.refine_query(
+                f"The specific term '{retrieval_query}' returned no results. Generate a broader ophthalmic synonym or category for this condition.",
+                recent_history=None
+            )
+            if verbose:
+                print(f"  [Fallback Query] {broad_query}")
+            
+            # Retry search with broader query
+            context_docs = self.retriever.search(broad_query, k=k, verbose=verbose)
+
         if not context_docs:
             fallback = (
-                "I'm sorry, I couldn't find relevant information to answer "
-                "your question. Please consult an eye care professional."
+                "I'm sorry, I couldn't find relevant information in my medical texts "
+                "to answer your question. Please consult an eye care professional."
             )
             if self.enable_session_state:
                 session.total_turns = current_turn
                 session.last_active_turn = current_turn
                 self._persist_session(session)
+            
+            # Record empty grounding state for evaluation
+            self.session.state["grounding_verification"] = {"verdict": "UNKNOWN", "flagged_claims": []}
             return (fallback, visual_findings)
 
         context_block = self.generator.build_context_block(context_docs)

@@ -611,80 +611,49 @@ class MedGemmaGenerator:
         query_anatomy: Optional[set] = None,
         verbose: bool = True
     ) -> dict:
-        """Verify factual claims in the answer against context + check anatomy."""
-        system_prompt = (
-            "You are a medical fact-checker with anatomical expertise. You will receive:\n"
-            "  1. A PATIENT ANSWER\n"
-            "  2. The SOURCE TEXTS used\n"
-            "  3. The QUERY ANATOMY (which eye structure the question is about)\n\n"
-            "Your job:\n"
-            "1. Verify EVERY factual claim is supported by source texts.\n"
-            "2. Verify the answer discusses the same anatomy as the query.\n"
-            "3. Flag any claims that:\n"
-            "   - Are not in the sources\n"
-            "   - Discuss a different anatomical structure than the query\n"
-            "   - Invent source citations not present in context\n\n"
-            "OUTPUT FORMAT (strictly follow):\n"
-            "VERDICT: PASS or FAIL\n"
-            "FLAGGED CLAIMS:\n"
-            "- [claim 1]\n"
-            "ANATOMY MISMATCH: [Yes/No + brief explanation]\n"
-            "REASONING: [1-2 sentences]"
-        )
-
-        anatomy_note = f"\n\nQUERY ANATOMY: {query_anatomy}" if query_anatomy else ""
-        user_message = f"PATIENT ANSWER:\n{answer}\n\nSOURCE TEXTS:\n{context_block}{anatomy_note}"
+        """Verify factual claims in the answer against context using fast NLI CrossEncoder."""
+        import re
+        from src.evaluator import get_evaluator
         
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ]
+        # Fast sentence splitting to extract claims
+        # Ignore short introductory/hedging phrases
+        claims = [c.strip() for c in re.split(r'(?<=[.!?])\s+', answer) if len(c.strip()) > 15]
+        
+        # Add anatomy constraint as a meta-claim if provided
+        if query_anatomy:
+            anatomy_str = ", ".join(query_anatomy)
+            claims.append(f"The patient's issue specifically involves the {anatomy_str}.")
 
-        response = self._generate(
-            messages,
-            max_new_tokens=256,
-            temperature=0.1,
-            repetition_penalty=1.3,
-        )
-
-        return self._parse_grounding_response(response, verbose)
-
-    def _parse_grounding_response(self, response: str, verbose: bool) -> dict:
-        verdict = "PASS"
-        flagged_claims = []
-        anatomy_mismatch = "No"
-        reasoning = ""
-
-        for line in response.split("\n"):
-            line = line.strip()
-            if line.upper().startswith("VERDICT:"):
-                v = line.split(":", 1)[1].strip().upper()
-                verdict = "FAIL" if "FAIL" in v else "PASS"
-            elif line.startswith("- ") and verdict == "FAIL":
-                claim = line[2:].strip()
-                if claim.lower() != "none" and len(claim) > 5:
-                    flagged_claims.append(claim)
-            elif line.upper().startswith("ANATOMY MISMATCH:"):
-                anatomy_mismatch = line.split(":", 1)[1].strip()
-            elif line.upper().startswith("REASONING:"):
-                reasoning = line.split(":", 1)[1].strip()
-
-        if flagged_claims and verdict == "PASS":
-            verdict = "FAIL"
-
-        if verbose:
-            print(f"[Grounding] Verdict: {verdict}")
-            for claim in flagged_claims:
-                print(f"  ⚠️  Flagged: {claim}")
-            print(f"[Grounding] Anatomy mismatch: {anatomy_mismatch}")
-            print(f"[Grounding] Reasoning: {reasoning}")
-
-        return {
-            "verdict": verdict,
-            "flagged_claims": flagged_claims,
-            "anatomy_mismatch": anatomy_mismatch,
-            "reasoning": reasoning,
-        }
+        try:
+            evaluator = get_evaluator()
+            result = evaluator.verify_grounding(claims, context_block)
+            
+            verdict = result["verdict"]
+            unsupported = result.get("unsupported_claims", [])
+            flagged = [c["claim"] for c in unsupported]
+            
+            if verbose:
+                print(f"[Grounding] Verdict: {verdict}")
+                for claim in flagged:
+                    print(f"  ⚠️  Flagged: {claim}")
+            
+            # Format to match existing engine expectations
+            return {
+                "verdict": verdict,
+                "flagged_claims": flagged,
+                "anatomy_mismatch": "Unknown", # NLI handles semantic contradiction generically
+                "reasoning": result["reasoning"]
+            }
+            
+        except Exception as e:
+            if verbose:
+                print(f"[Grounding] Error: {e}")
+            return {
+                "verdict": "ERROR",
+                "flagged_claims": [],
+                "anatomy_mismatch": "Unknown",
+                "reasoning": str(e)
+            }
 
     # ── Modality Detection (unchanged from original) ─────────────────────────
     VALID_MODALITIES = {
