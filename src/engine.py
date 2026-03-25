@@ -219,7 +219,7 @@ class QueryEngine:
         is_followup = (
             self.enable_session_state and 
             current_turn > 1 and 
-            session.primary_condition is not None
+            session.has_context()
         )
         
         if is_followup:

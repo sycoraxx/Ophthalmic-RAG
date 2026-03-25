@@ -391,6 +391,18 @@ class ClinicalSessionState:
             # Only clear if _update_anatomy hasn't already flagged drift this cycle
             self.topic_drift_detected = False
     
+    def has_context(self, threshold: float = 0.4) -> bool:
+        """Check if session contains any active, meaningful clinical context."""
+        if self.primary_condition and self.primary_condition.confidence > threshold:
+            return True
+        if self.anatomy_of_interest and self.anatomy_of_interest.confidence > threshold:
+            return True
+        if any(f.confidence > threshold for f in self.clinical_findings.values()):
+            return True
+        if any(s.confidence > threshold for s in self.symptoms.values()):
+            return True
+        return False
+
     # ── Query Context Generation ──────────────────────────────────────────
     def to_query_context(self) -> str:
         """
@@ -411,6 +423,16 @@ class ClinicalSessionState:
             ]
             if high_conf_secondaries:
                 parts.append(f"secondary:{', '.join(high_conf_secondaries)}")
+        
+        if self.clinical_findings:
+            high_conf_findings = [f.value for f in self.clinical_findings.values() if f.confidence > 0.5]
+            if high_conf_findings:
+                parts.append(f"findings:{', '.join(high_conf_findings)}")
+                
+        if self.symptoms:
+            high_conf_symptoms = [s.value for s in self.symptoms.values() if s.confidence > 0.5]
+            if high_conf_symptoms:
+                parts.append(f"symptoms:{', '.join(high_conf_symptoms)}")
         
         if self.imaging_modality and self.imaging_modality.confidence > 0.5:
             parts.append(f"imaging:{self.imaging_modality.value}")
