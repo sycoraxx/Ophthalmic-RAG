@@ -194,7 +194,7 @@ class ClinicalSessionState:
         else:
             # New anatomy detected - check if confidence is higher
             current_confidence = self.anatomy_of_interest.decay(turn)
-            if confidence > current_confidence + 0.2:  # Significant shift
+            if confidence > current_confidence + 0.1:  # Topic shift
                 print(f"[State] Anatomy shift detected: {self.anatomy_of_interest.value} → {normalized}")
                 self.anatomy_of_interest = StateConfidence(
                     value=normalized,
@@ -221,7 +221,7 @@ class ClinicalSessionState:
         # New condition - add as secondary or promote to primary
         new_conf = StateConfidence(value=normalized, confidence=confidence, last_updated_turn=turn)
         
-        if self.primary_condition is None or confidence > self.primary_condition.decay(turn) + 0.3:
+        if self.primary_condition is None or confidence > self.primary_condition.decay(turn) + 0.15:
             # Promote to primary
             if self.primary_condition:
                 self.secondary_conditions.append(self.primary_condition)
@@ -256,6 +256,14 @@ class ClinicalSessionState:
             )
         elif self.imaging_modality.value == normalized:
             self.imaging_modality.reinforce(confidence, turn)
+        else:
+            # Different modality — replace (new image uploaded)
+            print(f"[State] Imaging modality changed: {self.imaging_modality.value} → {normalized}")
+            self.imaging_modality = StateConfidence(
+                value=normalized,
+                confidence=confidence,
+                last_updated_turn=turn,
+            )
 
     def _update_finding(self, text: str, confidence: float, turn: int):
         """Update clinical findings."""
@@ -282,25 +290,40 @@ class ClinicalSessionState:
             self.procedures[normalized] = StateConfidence(normalized, confidence, turn)
     
     def _apply_decay(self, current_turn: int):
-        """Apply confidence decay to all state elements."""
+        """Apply confidence decay to all state elements and prune stale entries."""
+        PRUNE_THRESHOLD = 0.15  # Evict entries that have decayed below this
+        
         if self.anatomy_of_interest:
             self.anatomy_of_interest.confidence = self.anatomy_of_interest.decay(current_turn)
+            if self.anatomy_of_interest.confidence < PRUNE_THRESHOLD:
+                self.anatomy_of_interest = None
         
         if self.primary_condition:
             self.primary_condition.confidence = self.primary_condition.decay(current_turn)
+            if self.primary_condition.confidence < PRUNE_THRESHOLD:
+                self.primary_condition = None
         
+        # Prune secondary conditions
         for sec in self.secondary_conditions:
             sec.confidence = sec.decay(current_turn)
+        self.secondary_conditions = [s for s in self.secondary_conditions if s.confidence >= PRUNE_THRESHOLD]
         
+        # Prune symptoms
         for symptom in self.symptoms.values():
             symptom.confidence = symptom.decay(current_turn)
+        self.symptoms = {k: v for k, v in self.symptoms.items() if v.confidence >= PRUNE_THRESHOLD}
         
-        for tracker in [self.clinical_findings, self.medications, self.procedures]:
+        # Prune findings, medications, procedures
+        for attr_name in ('clinical_findings', 'medications', 'procedures'):
+            tracker = getattr(self, attr_name)
             for item in tracker.values():
                 item.confidence = item.decay(current_turn)
+            setattr(self, attr_name, {k: v for k, v in tracker.items() if v.confidence >= PRUNE_THRESHOLD})
         
         if self.imaging_modality:
             self.imaging_modality.confidence = self.imaging_modality.decay(current_turn)
+            if self.imaging_modality.confidence < PRUNE_THRESHOLD:
+                self.imaging_modality = None
 
     def _aggregate_metadata(self, entities: List[ClinicalEntity], text: Optional[str] = None):
         """Aggregate granular entity metadata into session-level insights."""
