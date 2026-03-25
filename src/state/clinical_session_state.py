@@ -334,15 +334,26 @@ class ClinicalSessionState:
                 current_priority_val = entity_priority_val
     
     def _detect_topic_drift(self, current_turn: int):
-        """Detect if conversation has shifted to a new topic."""
-        current_anatomy = self.anatomy_of_interest.value if self.anatomy_of_interest else None
+        """Detect if conversation has shifted to a genuinely new clinical topic.
         
-        # Always track topic history (even on first turn)
-        topic_label = (
-            current_anatomy
-            or (self.primary_condition.value if self.primary_condition else None)
-            or "general"
-        )
+        Key insight: vague follow-ups like "what to do now?" carry no entities
+        and should *inherit* the existing topic — not be treated as a drift to
+        "general". Drift is only flagged when a *new, specific* clinical topic
+        contradicts the established one.
+        """
+        current_anatomy = self.anatomy_of_interest.value if self.anatomy_of_interest else None
+        current_condition = self.primary_condition.value if self.primary_condition else None
+        
+        # Build topic label from the most specific available context
+        topic_label = current_anatomy or current_condition or None
+        
+        # If the current turn produced NO identifiable topic (vague follow-up),
+        # inherit the previous topic instead of defaulting to "general".
+        if topic_label is None and self.topic_history:
+            topic_label = self.topic_history[-1]
+        elif topic_label is None:
+            topic_label = "general"
+        
         self.topic_history.append(topic_label)
         self.topic_history = self.topic_history[-10:]  # Keep last 10 topics
         
@@ -350,12 +361,23 @@ class ClinicalSessionState:
         if len(self.topic_history) < 2:
             return
         
-        # Simple heuristic: if anatomy changes significantly, flag drift
-        recent_anatomy = self.topic_history[-2]  # Previous topic
+        previous_topic = self.topic_history[-2]
         
-        if recent_anatomy and current_anatomy and recent_anatomy != current_anatomy:
+        # Drift requires BOTH topics to be specific (not "general") and different.
+        # If either side is "general", the query is too vague to call a drift.
+        is_both_specific = (
+            previous_topic != "general"
+            and topic_label != "general"
+            and previous_topic != topic_label
+        )
+        
+        # Only flag drift when a *new, explicit* anatomy contradicts the old one
+        if is_both_specific and current_anatomy and previous_topic != current_anatomy:
             self.topic_drift_detected = True
-            print(f"[State] Topic drift detected at turn {current_turn}")
+            print(f"[State] Topic drift detected at turn {current_turn}: '{previous_topic}' → '{current_anatomy}'")
+        else:
+            # Reset drift flag — no evidence of a genuine topic change
+            self.topic_drift_detected = False
     
     # ── Query Context Generation ──────────────────────────────────────────
     def to_query_context(self) -> str:
