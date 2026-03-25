@@ -190,7 +190,7 @@ def compute_generation_metrics(
     Returns:
         dict with all generation metric scores.
     """
-    reference = question_entry.get("ground_truth_answer", "")
+    reference = question_entry.get("correct_answer", "")
     keywords = question_entry.get("ground_truth_keywords", [])
     question = question_entry.get("question", "")
 

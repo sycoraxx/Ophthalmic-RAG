@@ -107,10 +107,10 @@ The engine is specifically tuned for Indian Clinical scenarios:
 | **MRR** | 0.574 | ✅ Acceptable |
 | **Keyword Coverage** | 80.5% | ✅ Strong |
 | **Grounding Pass Rate** | 100% ➔ **0.0%** | ✅ Strictly Validated (NLI CrossEncoder) |
-| **ROUGE-L** | 0.000 | ❌ Format Mismatch |
-| **Semantic Similarity** | 0.003 | ❌ Format Mismatch |
+| **ROUGE-L** | 0.000 ➔ **0.008** | ❌ Format Mismatch (Verbose Output) |
+| **Semantic Similarity** | 0.003 ➔ **0.320** | ⚠️ Low (Verbose vs Short MCQ) |
 
-**Bottom Line**: The system demonstrates solid retrieval foundations and terminology handling. The integration of the Zero-Shot Classifier for MCQ extraction solved the generative format mismatch, successfully raising the MCQ Accuracy to ~67%. Additionally, replacing the MedGemma generative grounding check with a strict NLI Entailment check successfully exposed the artificially inflated 100% grounding pass rate, ensuring hallucinations are now correctly flagged.
+**Bottom Line**: The system demonstrates solid retrieval foundations and terminology handling. The integration of the Zero-Shot Classifier for MCQ extraction solved the generative format mismatch, successfully raising the MCQ Accuracy to ~67%. Additionally, replacing the MedGemma generative grounding check with a strict NLI Entailment check successfully exposed the artificially inflated 100% grounding pass rate, ensuring hallucinations are now correctly flagged. Note: ROUGE-L and Semantic Similarity remain mathematically low due to the structural difference between conversational RAG paragraphs and single-phrase MCQ ground truth answers.
 
 ---
 
