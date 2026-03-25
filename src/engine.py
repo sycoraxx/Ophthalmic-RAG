@@ -210,6 +210,14 @@ class QueryEngine:
             visual_findings = self.analyze_image(image_path)
             if visual_findings and verbose:
                 print(f"  Findings: {visual_findings}")
+            
+            # If the session already has image-derived context (anatomy/conditions/findings),
+            # a new image means a new clinical topic. Reset image-derived context so the
+            # new EyeCLIP findings aren't blocked by reinforced old context.
+            if self.enable_session_state and session.has_context():
+                session.reset_for_new_image()
+                if verbose:
+                    print("[QueryEngine] 🔄 Cleared old image context for new image")
 
         # ── Step 1: Query Refinement/Rewriting ───────────────────────────────
         if verbose:

@@ -462,6 +462,11 @@ if prompt := st.chat_input("Ask an eye health question..."):
         # ── Step 1: Query Refinement or Rewriting ──────
         session = engine._get_or_create_session(session_id) if enable_session_tracking and session_id else None
         
+        # If a new image is uploaded and the session already has image-derived context,
+        # reset that context so the new image's findings take precedence.
+        if image_path and session is not None and session.has_context():
+            session.reset_for_new_image()
+        
         is_followup = (
             session is not None and 
             session.total_turns > 0 and 

@@ -519,6 +519,23 @@ class ClinicalSessionState:
         
         return False
     
+    def reset_for_new_image(self):
+        """Reset image-derived context when a new image is uploaded.
+        
+        Clears anatomy, conditions, findings, and imaging modality (which are
+        typically derived from EyeCLIP or the previous image analysis) while
+        preserving patient-reported context (symptoms, medications, procedures).
+        """
+        print(f"[State] Resetting image-derived context for new image upload")
+        self.anatomy_of_interest = None
+        self.primary_condition = None
+        self.secondary_conditions = []
+        self.clinical_findings = {}
+        self.imaging_modality = None
+        self.primary_region = OphthalmicRegion.UNSPECIFIED
+        self.triage_priority = IndianClinicalPriority.ROUTINE
+        self.topic_drift_detected = False
+    
     def reset_for_new_topic(self, preserve_session_id: bool = True):
         """Reset state while preserving session metadata."""
         old_session_id = self.session_id if preserve_session_id else None
