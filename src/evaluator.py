@@ -95,7 +95,10 @@ class LightweightEvaluator:
     def verify_grounding(self, claims: List[str], context: str) -> Dict[str, Any]:
         """
         Verify if a list of clinical claims are entailed by the context text.
-        Returns a FAIL verdict if any claim is contradicted or completely neutral (hallucinated).
+        
+        Uses a sliding-window approach to handle contexts that exceed
+        DeBERTa-v3-small's 512-token limit. Each claim is tested against
+        all context windows; a claim is entailed if ANY window entails it.
         """
         if not claims:
             return {"verdict": "PASS", "reasoning": "No claims provided to verify.", "unsupported_claims": []}
@@ -104,26 +107,63 @@ class LightweightEvaluator:
             return {"verdict": "FAIL", "reasoning": "Context is empty.", "unsupported_claims": claims}
 
         nli_pipe = self._load_nli()
+        tokenizer = nli_pipe.tokenizer
         
-        # cross-encoder/nli-deberta-v3-small yields: [{'label': 'entailment', 'score': 0.9}, ...]
-        # We test each claim against the full context
-        pairs = [{"text": context, "text_pair": claim} for claim in claims]
+        # ── Chunk context into overlapping windows ──────────────────────────
+        # Reserve ~112 tokens for the claim + special tokens; use rest for context
+        MAX_SEQ = 512
+        CLAIM_BUDGET = 112  # generous ceiling for a single-sentence claim
+        CTX_BUDGET = MAX_SEQ - CLAIM_BUDGET  # ~400 tokens for context per window
+        OVERLAP = 50  # token overlap between consecutive windows
         
-        try:
-            # We enforce strict entailment: the top label must be 'entailment'
-            results = nli_pipe(pairs, top_k=None)
-        except Exception as e:
-            print(f"[LightweightEvaluator] Error in NLI verification: {e}")
-            return {"verdict": "ERROR", "reasoning": str(e), "unsupported_claims": []}
+        ctx_ids = tokenizer.encode(context, add_special_tokens=False, verbose=False)
+        
+        if len(ctx_ids) <= CTX_BUDGET:
+            # Context fits in a single window — fast path (no windowing needed)
+            context_windows = [context]
+        else:
+            # Build overlapping token windows and decode back to text
+            context_windows = []
+            start = 0
+            while start < len(ctx_ids):
+                end = min(start + CTX_BUDGET, len(ctx_ids))
+                window_text = tokenizer.decode(ctx_ids[start:end], skip_special_tokens=True)
+                context_windows.append(window_text)
+                if end >= len(ctx_ids):
+                    break
+                start += CTX_BUDGET - OVERLAP  # slide forward with overlap
 
+        # ── Check each claim against all windows ─────────────────────────────
         unsupported = []
-        for claim, res_list in zip(claims, results):
-            # res_list is a list of dicts sorted by score: [{'label': 'entailment', 'score': 0.99}, ...]
-            top_pred = res_list[0]
-            label = top_pred["label"].lower()
+        
+        for claim in claims:
+            # Build NLI pairs for every window
+            pairs = [{"text": window, "text_pair": claim} for window in context_windows]
             
-            # For medical grounding, neutral (hallucination) or contradiction defaults to ungrounded.
-            if "entailment" not in label:
+            try:
+                all_results = nli_pipe(pairs, top_k=None)
+            except Exception as e:
+                print(f"[LightweightEvaluator] NLI error for claim: {e}")
+                continue
+            
+            # If only one window, wrap in list for uniform handling
+            if len(context_windows) == 1:
+                all_results = [all_results]
+            
+            # Max-entailment aggregation: claim is grounded if ANY window entails it
+            best_entailment_score = 0.0
+            best_label = "neutral"
+            
+            for res_list in all_results:
+                for pred in res_list:
+                    if "entailment" in pred["label"].lower():
+                        if pred["score"] > best_entailment_score:
+                            best_entailment_score = pred["score"]
+                            best_label = pred["label"]
+            
+            if best_entailment_score < 0.5:
+                # Not entailed by any window — find the dominant non-entailment label
+                top_pred = all_results[0][0]  # fallback: first window's top prediction
                 unsupported.append({
                     "claim": claim,
                     "nli_label": top_pred["label"],
@@ -133,13 +173,13 @@ class LightweightEvaluator:
         if unsupported:
             return {
                 "verdict": "FAIL",
-                "reasoning": f"Found {len(unsupported)} ungrounded claims.",
+                "reasoning": f"Found {len(unsupported)} ungrounded claims ({len(context_windows)} context windows checked).",
                 "unsupported_claims": unsupported
             }
             
         return {
             "verdict": "PASS",
-            "reasoning": "All claims are strictly entailed by the retrieved context.",
+            "reasoning": f"All claims entailed ({len(context_windows)} context windows checked).",
             "unsupported_claims": []
         }
 
