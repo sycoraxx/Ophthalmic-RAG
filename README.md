@@ -15,8 +15,10 @@ A self-correcting, multimodal RAG (Retrieval-Augmented Generation) pipeline spec
 - **MedEmbed & MedCPT**: Uses specialized medical embeddings and cross-encoders for high-precision retrieval over clinical corpora.
 
 ### 3. Intelligent Session Management
-- **Confidence Decay**: Clinical findings and symptoms are tracked with time-based decay, handling multi-turn diagnostic sessions with precision.
-- **Smart Topic Drift Detection**: Vague follow-up queries (e.g., "what to do now?") correctly inherit the established clinical topic, preventing false session resets.
+- **Confidence Decay with Staleness Pruning**: Clinical findings and symptoms are tracked with time-based decay. Entries that decay below a threshold are automatically pruned, preventing stale context from lingering across turns.
+- **Image-Aware Context Switching**: When a new image is uploaded mid-conversation, image-derived context (anatomy, conditions, findings, imaging modality) is automatically reset while preserving patient-reported context (symptoms, medications, procedures).
+- **Smart Topic Drift Detection**: Vague follow-up queries (e.g., "what to do now?") correctly inherit the established clinical topic, preventing false session resets. Anatomy-aware mapping bridges conditions to structures (e.g., "cataract" ↔ "lens").
+- **Adaptive Context Thresholds**: Low-barrier override thresholds allow legitimate topic changes to update the session state without needing artificially high confidence.
 - **Localized Metadata**: Automates Anatomical Locality (Anterior/Posterior Segment) and Clinical Triage Priority (Emergency/Urgent) mapping based on AIOS/NPCB standards.
 
 ### 4. Self-Correcting RAG Loop
