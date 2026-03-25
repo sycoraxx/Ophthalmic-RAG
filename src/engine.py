@@ -48,10 +48,21 @@ class QueryEngine:
     and EyeCLIP-integrated entity extraction.
     """
 
-    def __init__(self, enable_session_state: bool = True):
+    def __init__(self, enable_session_state: bool = True, config_path: str = "config.json"):
         self.retriever = RetinaRetriever()
         self.generator = MedGemmaGenerator()
         self.enable_session_state = enable_session_state
+        
+        # Load optional config
+        self.config = {}
+        if os.path.exists(config_path):
+            import json
+            try:
+                with open(config_path) as f:
+                    self.config = json.load(f)
+                print(f"[QueryEngine] Loaded config from {config_path}")
+            except Exception as e:
+                print(f"[QueryEngine] ⚠ Failed to load config {config_path}: {e}")
         
         # In-memory session cache (persists across calls, cleared on restart)
         self._active_sessions: dict[str, ClinicalSessionState] = {}
@@ -297,11 +308,13 @@ class QueryEngine:
         # Detect query anatomy for verification
         query_anatomy = self.generator._detect_anatomy(raw_query) if self.enable_session_state else None
         
+        grounding_method = self.config.get("grounding_method", "nli")
         grounding = self.generator.verify_grounding(
             answer, 
             context_block, 
             query_anatomy=query_anatomy,
-            verbose=verbose
+            verbose=verbose,
+            method=grounding_method
         )
         grounding["retries"] = 0
 
