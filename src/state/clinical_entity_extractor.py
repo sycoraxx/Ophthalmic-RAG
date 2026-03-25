@@ -323,15 +323,17 @@ class ClinicalEntityExtractor:
             confidence_score = float(match.group(3)) / 100.0
             
             # Map confidence label to numeric adjustment
+            # NOTE: EyeCLIP percentages are inherently low (5-20% typical) but still accurate.
+            # Adjustments are kept minimal to avoid filtering out valid findings.
             label_adjustment = {
-                "probable": 0.15,  # Add 15% to model confidence
-                "possible": -0.10, # Subtract 10% for uncertainty
+                "probable": 0.10,  # Slight boost for higher-confidence label
+                "possible": -0.02, # Minimal penalty — the raw % already reflects uncertainty
                 "detected": 0.0,   # Neutral
             }
             adjusted_confidence = min(confidence_score + label_adjustment.get(confidence_label, 0), 1.0)
             
-            # Skip very low confidence findings
-            if adjusted_confidence < 0.2:
+            # Skip only noise-level findings (below 3%)
+            if adjusted_confidence < 0.03:
                 continue
             
             # Look up standardized mapping

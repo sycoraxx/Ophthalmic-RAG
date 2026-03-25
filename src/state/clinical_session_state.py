@@ -145,7 +145,9 @@ class ClinicalSessionState:
         self.last_active_turn = current_turn
         
         for entity in entities:
-            if entity.confidence < 0.5:
+            # EyeCLIP entities use a lower threshold (their scores are inherently low but accurate)
+            min_confidence = 0.05 if entity.source == "eyeclip" else 0.3
+            if entity.confidence < min_confidence:
                 continue
             
             if entity.entity_type == EntityType.ANATOMY:

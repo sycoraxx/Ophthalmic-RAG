@@ -238,7 +238,7 @@ class MedGemmaGenerator:
             parsed = self._parse_eyeclip_findings(visual_findings)
             if parsed and parsed.get("conditions"):
                 # Filter out anything below 10%
-                valid_conds = [c for c in parsed["conditions"] if c["score"] >= 10.0]
+                valid_conds = [c for c in parsed["conditions"] if c["score"] >= 4.0]
                 conds = [f"{c['name']} ({c['score']}%)" for c in valid_conds]
                 cond_str = ", ".join(conds) if conds else "Normal/Unremarkable"
                 modality = parsed.get("modality") or "Unknown"
