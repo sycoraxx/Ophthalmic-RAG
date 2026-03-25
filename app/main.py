@@ -4,7 +4,7 @@ UPDATED: Session-aware conversation handling with clinical context persistence
 ─────────────────────────────────────────────────────────────────────────────────
 
 Launch:
-    streamlit run app.py --server.port 8501
+    streamlit run app/main.py -- --gpus 0,1
 
 Supports:
   - Text-only queries (same as before)
@@ -465,7 +465,7 @@ if prompt := st.chat_input("Ask an eye health question..."):
         is_followup = (
             session is not None and 
             session.total_turns > 0 and 
-            session.primary_condition is not None
+            session.has_context()
         )
         
         if is_followup:
