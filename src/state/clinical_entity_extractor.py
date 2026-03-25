@@ -471,7 +471,24 @@ class ClinicalEntityExtractor:
                 if item.get("confidence", 0) < 0.5:
                     continue
                 
-                entity_type = EntityType(item.get("entity_type", "finding"))
+                # Map invalid/hallucinated types from LLM
+                raw_type = item.get("entity_type", "finding").lower()
+                type_map = {
+                    "treatment": EntityType.MEDICATION,
+                    "drug": EntityType.MEDICATION,
+                    "surgery": EntityType.PROCEDURE,
+                    "test": EntityType.IMAGING,
+                    "sign": EntityType.FINDING,
+                }
+                
+                try:
+                    if raw_type in type_map:
+                        entity_type = type_map[raw_type]
+                    else:
+                        entity_type = EntityType(raw_type)
+                except ValueError:
+                    # Fallback for completely unknown strings
+                    entity_type = EntityType.FINDING
                 
                 entity = ClinicalEntity(
                     text=item["text"],

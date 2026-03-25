@@ -336,10 +336,8 @@ class ClinicalSessionState:
     def _detect_topic_drift(self, current_turn: int):
         """Detect if conversation has shifted to a genuinely new clinical topic.
         
-        Key insight: vague follow-ups like "what to do now?" carry no entities
-        and should *inherit* the existing topic — not be treated as a drift to
-        "general". Drift is only flagged when a *new, specific* clinical topic
-        contradicts the established one.
+        Refined: also considers condition-to-anatomy relationships (e.g. cataract -> lens)
+        to prevent false positives.
         """
         current_anatomy = self.anatomy_of_interest.value if self.anatomy_of_interest else None
         current_condition = self.primary_condition.value if self.primary_condition else None
@@ -355,24 +353,38 @@ class ClinicalSessionState:
             topic_label = "general"
         
         self.topic_history.append(topic_label)
-        self.topic_history = self.topic_history[-10:]  # Keep last 10 topics
+        self.topic_history = self.topic_history[-10:]
         
-        # Only detect drift after 2+ topics recorded
         if len(self.topic_history) < 2:
             return
         
         previous_topic = self.topic_history[-2]
         
-        # Drift requires BOTH topics to be specific (not "general") and different.
-        # If either side is "general", the query is too vague to call a drift.
+        # ── Anatomy-aware Drift Detection ──────────────────────────────────
+        # Map common conditions to their primary anatomy to bridge the gap
+        condition_to_anatomy = {
+            "cataract": "lens",
+            "glaucoma": "optic nerve",
+            "uveitis": "uvea",
+            "keratitis": "cornea",
+            "conjunctivitis": "conjunctiva",
+            "diabetic retinopathy": "retina",
+            "amd": "macula",
+            "drusen": "macula",
+            "posterior subcapsular cataract": "lens",
+        }
+        
+        prev_canon = condition_to_anatomy.get(previous_topic.lower(), previous_topic.lower())
+        curr_canon = condition_to_anatomy.get(topic_label.lower(), topic_label.lower())
+        
         is_both_specific = (
             previous_topic != "general"
             and topic_label != "general"
-            and previous_topic != topic_label
+            and prev_canon != curr_canon
         )
         
-        # Only flag drift when a *new, explicit* anatomy contradicts the old one
-        if is_both_specific and current_anatomy and previous_topic != current_anatomy:
+        # Only flag drift when a *new, explicit* anatomy contradicts the old one (or its canonical form)
+        if is_both_specific and current_anatomy and prev_canon != current_anatomy.lower():
             self.topic_drift_detected = True
             print(f"[State] Topic drift detected at turn {current_turn}: '{previous_topic}' → '{current_anatomy}'")
         elif not self.topic_drift_detected:

@@ -628,8 +628,22 @@ class MedGemmaGenerator:
         from src.evaluator import get_evaluator
         
         # Fast sentence splitting to extract claims
-        # Ignore short introductory/hedging phrases
-        claims = [c.strip() for c in re.split(r'(?<=[.!?])\s+', answer) if len(c.strip()) > 15]
+        # Ignore short introductory/hedging phrases or common boilerplate
+        potential_claims = [c.strip() for c in re.split(r'(?<=[.!?])\s+', answer) if len(c.strip()) > 15]
+        
+        boilerplate_keywords = {
+            "consult", "doctor", "specialist", "professional", "healthcare",
+            "based on", "provided text", "according to", "possible causes",
+            "important to note", "however", "recommend", "seek medical"
+        }
+        
+        claims = []
+        for c in potential_claims:
+            low_c = c.lower()
+            # If the sentence is mostly boilerplate/hedging, skip grounding
+            if any(kw in low_c for kw in boilerplate_keywords) and len(low_c) < 100:
+                continue
+            claims.append(c)
         
         # Add anatomy constraint as a meta-claim if provided
         if query_anatomy:
