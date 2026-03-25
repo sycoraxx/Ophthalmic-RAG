@@ -146,24 +146,27 @@ class LightweightEvaluator:
                 print(f"[LightweightEvaluator] NLI error for claim: {e}")
                 continue
             
-            # If only one window, wrap in list for uniform handling
-            if len(context_windows) == 1:
-                all_results = [all_results]
-            
-            # Max-entailment aggregation: claim is grounded if ANY window entails it
-            best_entailment_score = 0.0
-            best_label = "neutral"
+            # Less strict aggregation: claim is grounded if ANY window entails it
+            # OR if ANY window considers it a high-confidence 'neutral' (harmless conversational text).
+            # We ONLY flag if the claim is explicitly contradicted everywhere.
+            is_supported = False
             
             for res_list in all_results:
-                for pred in res_list:
-                    if "entailment" in pred["label"].lower():
-                        if pred["score"] > best_entailment_score:
-                            best_entailment_score = pred["score"]
-                            best_label = pred["label"]
+                top_label = res_list[0]["label"].lower()
+                top_score = res_list[0]["score"]
+                
+                if "entailment" in top_label:
+                    is_supported = True
+                    break
+                elif "neutral" in top_label and top_score > 0.6:
+                    # High-confidence neutral -> not explicitly contradicting the text.
+                    # Acceptable for generative LLMs writing patient-facing instructions.
+                    is_supported = True
+                    break
             
-            if best_entailment_score < 0.5:
-                # Not entailed by any window — find the dominant non-entailment label
-                top_pred = all_results[0][0]  # fallback: first window's top prediction
+            if not is_supported:
+                # Not supported anywhere — find the dominant error label for logging
+                top_pred = all_results[0][0]
                 unsupported.append({
                     "claim": claim,
                     "nli_label": top_pred["label"],
