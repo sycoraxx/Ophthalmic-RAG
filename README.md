@@ -94,39 +94,6 @@ export LVP_MEDICAL_NER=1  # default (auto-detect medspaCy/spaCy backend)
 # export LVP_MEDICAL_NER=0  # disable medical NER and use rule+LLM extraction only
 ```
 
-### 2.2 Build a Dedicated Ophthalmic Lexicon from External Sources
-The extractor reads a dedicated local lexicon file at `data/knowledge_base/ophthalmic_lexicon.json`.
-
-Use converter scripts to transform ontology dumps into builder-ready TSV files:
-```bash
-conda activate rag
-
-# MeSH XML (desc/supp)
-python scripts/convert_mesh_to_ophthalmic_source.py \
-  --input /path/to/desc2026.xml \
-  --input /path/to/supp2026.xml \
-  --output data/knowledge_base/sources/mesh_ophthalmic.tsv
-
-# HPO OBO
-python scripts/convert_hpo_to_ophthalmic_source.py \
-  --input /path/to/hp.obo \
-  --output data/knowledge_base/sources/hpo_ophthalmic.tsv
-
-# MONDO OBO
-python scripts/convert_mondo_to_ophthalmic_source.py \
-  --input /path/to/mondo.obo \
-  --output data/knowledge_base/sources/mondo_ophthalmic.tsv
-```
-
-Then build the final runtime lexicon:
-```bash
-python scripts/build_ophthalmic_lexicon.py \
-  --source data/knowledge_base/sources/mesh_ophthalmic.tsv \
-  --source data/knowledge_base/sources/hpo_ophthalmic.tsv \
-  --source data/knowledge_base/sources/mondo_ophthalmic.tsv \
-  --output data/knowledge_base/ophthalmic_lexicon.json
-```
-
 ### 3. Model Downloads
 This project requires specialized model weights. Place them in the `models/checkpoints/` directory:
 - `medgemma-1.5-4b-it`: The primary medical LLM processor.
