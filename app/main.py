@@ -34,8 +34,6 @@ import time
 import uuid
 from pathlib import Path
 
-from src.triage import check_red_flags
-
 # ─── Constants ────────────────────────────────────────────────────────────────
 ROLLING_HISTORY_SIZE = 3  # queries-only, so we can afford more turns
 SESSION_DIR = Path("./data/sessions")  # Match engine.py
@@ -407,18 +405,6 @@ uploaded_file = st.file_uploader(
 )
 
 if prompt := st.chat_input("Ask an eye health question..."):
-    # ── Step -1: Immediate Emergency Triage ─────
-    emergency_response = check_red_flags(prompt)
-    if emergency_response:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": emergency_response,
-            "pipeline": {"verdict": "EMERGENCY bypass", "time": 0.0},
-        })
-        st.session_state.upload_key += 1
-        st.rerun()
-
     # Save image if uploaded
     image_path = _save_uploaded_image(uploaded_file)
 
@@ -444,184 +430,61 @@ if prompt := st.chat_input("Ask an eye health question..."):
 
     # Run pipeline with status updates
     with st.chat_message("assistant", avatar="🧑‍⚕️"):
-        pipeline_data = {}
         status_container = st.empty()
         start_time = time.time()
-
-        # ── Step 0: EyeCLIP Image Analysis ────────────
-        visual_findings = None
-        if image_path and engine.vision_agent is not None:
-            status_container.markdown(
-                '<span class="pipeline-step step-eyeclip">👁️ Analyzing image with EyeCLIP...</span>',
-                unsafe_allow_html=True,
-            )
-            visual_findings = engine.analyze_image(image_path)
-            if visual_findings:
-                pipeline_data["visual_findings"] = visual_findings
-
-        # ── Step 1: Query Refinement or Rewriting ──────
-        session = engine._get_or_create_session(session_id) if enable_session_tracking and session_id else None
-        
-        # If a new image is uploaded and the session already has image-derived context,
-        # reset that context so the new image's findings take precedence.
-        if image_path and session is not None and session.has_context():
-            session.reset_for_new_image()
-        
-        is_followup = (
-            session is not None and 
-            session.total_turns > 0 and 
-            session.has_context()
-        )
-        
-        if is_followup:
-            status_container.markdown(
-                '<span class="pipeline-step step-refine">🔄 Context-Aware Rewriting...</span>',
-                unsafe_allow_html=True,
-            )
-            refined = engine.generator.rewrite_query_for_retrieval(
-                current_query=prompt,
-                session_state=session,
-                visual_findings=visual_findings,
-                image_path=image_path,
-            )
-        else:
-            status_container.markdown(
-                '<span class="pipeline-step step-refine">🔄 Refining query with MedGemma...</span>',
-                unsafe_allow_html=True,
-            )
-            refined = engine.refine_query(
-                prompt,
-                recent_history=recent_queries if enable_session_tracking else None,
-                image_path=image_path,
-                visual_findings=visual_findings,
-            )
-            
-        pipeline_data["refined_query"] = refined
-
-        # ── Step 2: Hybrid Retrieval + Re-ranking ──────
         status_container.markdown(
-            '<span class="pipeline-step step-retrieve">🔎 Searching textbooks...</span> '
-            '<span class="pipeline-step step-rerank">📊 Re-ranking results...</span>',
+            '<span class="pipeline-step step-refine">🧠 Running unified engine pipeline...</span>',
             unsafe_allow_html=True,
         )
 
-        retrieval_query = refined
-        if visual_findings and not is_followup:
-            from src.vision.eyeclip_agent import EyeClipAgent
-            retrieval_terms = EyeClipAgent.get_retrieval_terms(visual_findings)
-            if retrieval_terms:
-                retrieval_query = f"{retrieval_terms} {refined}"
+        result = engine.ask(
+            raw_query=prompt,
+            image_path=image_path,
+            k=num_sources,
+            verbose=False,
+            session_id=session_id,
+            recent_history=recent_queries if enable_session_tracking else None,
+            patient_profile=_get_patient_profile(),
+            fast_mode=fast_mode,
+            use_session_state=enable_session_tracking,
+            return_trace=True,
+        )
 
-        child_hits = engine.hybrid_retriever.invoke(retrieval_query)[:num_sources * 4]
-        reranked = engine.rerank(retrieval_query, child_hits, top_k=num_sources * 2)
-
-        seen, context_docs = set(), []
-        for child in reranked:
-            p_id = child.metadata.get("parent_id")
-            if p_id and p_id not in seen:
-                parent_doc = engine.parent_store.get(p_id)
-                if parent_doc:
-                    context_docs.append(parent_doc)
-                    seen.add(p_id)
-            if len(context_docs) >= num_sources:
-                break
-
-        pipeline_data["num_sources"] = len(context_docs)
-        pipeline_data["sources"] = [
-            {
-                "source": doc.metadata.get("source", "?"),
-                "section_path": doc.metadata.get("section_path", "?"),
-                "content": doc.page_content,
-            }
-            for doc in context_docs
-        ]
-
-        if not context_docs:
-            answer = "I'm sorry, I couldn't find relevant information to answer your question. Please consult an eye care professional."
-            pipeline_data["verdict"] = "N/A"
+        if len(result) == 4:
+            answer, visual_findings, returned_session_id, pipeline_data = result
+            if enable_session_tracking and returned_session_id:
+                st.session_state.session_id = returned_session_id
+        elif len(result) == 3:
+            answer, visual_findings, pipeline_data = result
         else:
-            # ── Step 3: Answer Generation ──────────────
-            status_container.markdown(
-                '<span class="pipeline-step step-generate">💬 Generating answer...</span>',
-                unsafe_allow_html=True,
-            )
-            
-            # NEW: Pass session_id to generate_answer via engine.ask() pattern
-            answer = engine.generate_answer(
-                prompt, 
-                context_docs,
-                session_state=engine._get_or_create_session(session_id) if enable_session_tracking and session_id else None,
-                patient_profile=_get_patient_profile(),
-                recent_history=recent_queries if enable_session_tracking else None,
-                visual_findings=visual_findings,
-                image_path=image_path,
-            )
+            answer, visual_findings = result
+            pipeline_data = {}
 
-            # ── Step 4: Grounding Verification ─────────
-            if not fast_mode:
-                status_container.markdown(
-                    '<span class="pipeline-step step-verify">🔬 Verifying facts...</span>',
-                    unsafe_allow_html=True,
-                )
-                context_block = engine._build_context_block(context_docs)
-                grounding = engine.verify_grounding(answer, context_block, verbose=False)
-                pipeline_data["verdict"] = grounding["verdict"]
-                pipeline_data["retries"] = 0
+        if not isinstance(pipeline_data, dict):
+            pipeline_data = {}
+        if "time" not in pipeline_data:
+            pipeline_data["time"] = time.time() - start_time
+        if visual_findings and not pipeline_data.get("visual_findings"):
+            pipeline_data["visual_findings"] = visual_findings
 
-                # ── Step 5: Self-correction if needed ──────
-                if grounding["verdict"] == "FAIL":
-                    pipeline_data["flagged_claims"] = grounding["flagged_claims"]
-                    status_container.markdown(
-                        '<span class="pipeline-step step-correct">⚠️ Self-correcting hallucinations...</span>',
-                        unsafe_allow_html=True,
-                    )
-                    flagged = "\n".join(f"- {c}" for c in grounding["flagged_claims"])
-                    if not flagged:
-                        flagged = "- Unspecified claims not supported by sources"
-                    answer = engine.generate_answer(
-                        prompt, 
-                        context_docs,
-                        correction_context=flagged,
-                        session_state=engine._get_or_create_session(session_id) if enable_session_tracking and session_id else None,
-                        patient_profile=_get_patient_profile(),
-                        recent_history=recent_queries if enable_session_tracking else None,
-                        visual_findings=visual_findings,
-                        image_path=image_path,
-                    )
-                    grounding = engine.verify_grounding(answer, context_block, verbose=False)
-                    pipeline_data["verdict"] = grounding["verdict"]
-                    pipeline_data["retries"] = 1
-            else:
-                # Fast mode skips verification completely
-                pipeline_data["verdict"] = "FAST MODE (Unverified)"
-                pipeline_data["retries"] = 0
-
-        # ── Step 6: Extract Entities & Update Session State ──────────
-        if enable_session_tracking and session_id:
-            session = engine._get_or_create_session(session_id)
-            current_turn = session.total_turns + 1
-            
-            entities = engine.generator.extract_entities_from_answer(
-                answer=answer,
-                visual_findings=visual_findings,
-                turn_id=current_turn,
-            )
-            
-            session.update_from_entities(entities, current_turn, text=answer)
-            engine._persist_session(session)
-
-        elapsed = time.time() - start_time
-        pipeline_data["time"] = elapsed
+        elapsed = pipeline_data.get("time", time.time() - start_time)
 
         # Show final status
-        if pipeline_data["verdict"] == "PASS":
+        if pipeline_data.get("verdict") == "SAFETY TRIAGE bypass":
+            status_container.markdown(
+                '<span class="pipeline-step step-correct">🚨 Safety Triage Bypass</span> '
+                f'<span class="pipeline-step" style="background:rgba(255,255,255,0.05);color:#9ca3af;">'
+                f'⏱ {elapsed:.1f}s</span>',
+                unsafe_allow_html=True,
+            )
+        elif pipeline_data.get("verdict") == "PASS":
             status_container.markdown(
                 '<span class="pipeline-step step-pass">✅ Grounded & Verified</span> '
                 f'<span class="pipeline-step" style="background:rgba(255,255,255,0.05);color:#9ca3af;">'
                 f'⏱ {elapsed:.1f}s</span>',
                 unsafe_allow_html=True,
             )
-        elif pipeline_data["verdict"] == "FAST MODE (Unverified)":
+        elif pipeline_data.get("verdict") == "FAST MODE (Unverified)":
             status_container.markdown(
                 '<span class="pipeline-step step-pass" style="background:#4b5563;color:#d1d5db;">⚡ Fast Mode (Unverified)</span> '
                 f'<span class="pipeline-step" style="background:rgba(255,255,255,0.05);color:#9ca3af;">'
@@ -651,10 +514,10 @@ if prompt := st.chat_input("Ask an eye health question..."):
         "pipeline": pipeline_data,
     })
 
-    # Update rolling history — store refined query + visual findings
-    history_entry = refined
+    # Update rolling history with raw user intent to avoid recursive query-drift.
+    history_entry = prompt
     if visual_findings:
-        history_entry = f"{refined} [Image findings: {visual_findings}]"
+        history_entry = f"{prompt} [Image findings: {visual_findings}]"
     st.session_state.rolling_history.append(history_entry)
     st.session_state.rolling_history = st.session_state.rolling_history[-ROLLING_HISTORY_SIZE:]
 

@@ -26,6 +26,65 @@ from src.state.clinical_entity_extractor import ClinicalEntityExtractor
 
 MEDGEMMA_MODEL = "./models/checkpoints/medgemma-1.5-4b-it"
 
+MEDICAL_ACRONYMS: set[str] = {
+    "amd", "iop", "oct", "cnv", "dme", "erm", "pvd", "iol", "rd", "cscr",
+    "faf", "ffa", "icga", "rpe", "onh", "pcv", "npdr", "pdr",
+}
+
+QUERY_NOISE_TOKENS: set[str] = {
+    "patient", "question", "questions", "query", "context", "prior", "output",
+    "rewrite", "rewritten", "keywords", "keyword", "clinical", "english",
+    "only", "standalone", "search", "terms", "term", "include", "using",
+    "what", "when", "where", "which", "this", "that", "there", "here",
+    "from", "with", "into", "also", "have", "has", "had", "your", "you",
+    "for", "and", "the", "to", "of", "is", "are", "be", "it",
+    "differential", "diagnosis",
+    "possible", "probable", "detected",
+}
+
+TOKEN_CANONICAL_MAP: Dict[str, str] = {
+    "retinal": "retina",
+    "macular": "macula",
+    "conjunctival": "conjunctiva",
+    "corneal": "cornea",
+    "lenticular": "lens",
+    "watering": "tear",
+    "tearing": "tear",
+}
+
+SURFACE_SPOT_PATTERNS: tuple[str, ...] = (
+    r"white\s+(spot|patch|dot|mark|opacity|ulcer|lesion|infiltrate)",
+    r"spot\s+on\s+(the\s+)?(black\s+part|front)\s+of\s+(the\s+)?eye",
+)
+
+SURFACE_LOCATION_PATTERNS: tuple[str, ...] = (
+    r"black\s+part\s+of\s+(the\s+)?eye",
+    r"front\s+of\s+(?:(?:the|my|your)\s+)?eye",
+    r"on\s+(?:(?:the|my|your)\s+)?(eye|cornea|iris|conjunctiva)",
+    r"cornea\w*|iris\w*|conjunctiva\w*",
+    r"see\s+(it\s+)?in\s+(the\s+)?mirror|visible\s+in\s+(the\s+)?mirror",
+)
+
+INFLAMMATORY_FEATURE_PATTERNS: tuple[str, ...] = (
+    r"red\w*",
+    r"water\w*|tear\w*",
+    r"pain\w*",
+    r"photophobia|light\s+sensitive|sensitivity\s+to\s+light|bright\s+light",
+    r"blur\w*\s+vision|vision\s+blur\w*",
+    r"discharge",
+)
+
+FUNDUS_CONTEXT_PATTERNS: tuple[str, ...] = (
+    r"fundus|fundoscopy|fundoscopy|ophthalmoscopy",
+    r"dilat(e|ed|ion|ing)\s+(exam|eye|pupil)",
+    r"retinal\s+photo|retina\s+photo|fundus\s+photo",
+    r"oct|ffa|fluorescein\s+angiography",
+)
+
+POSTERIOR_SEGMENT_MISLEADING_TOKENS: set[str] = {
+    "retina", "retinal", "fundus", "leukocoria", "roth", "roths", "vascular",
+}
+
 
 class MedGemmaGenerator:
     """Manages MedGemma 1.5 4B for refinement, generation, and verification.
@@ -208,6 +267,16 @@ class MedGemmaGenerator:
         Focused on current query ONLY for precise retrieval.
         Conversation history is used later in generation, not retrieval.
         """
+        # Safety-first bypass: if query language suggests a potentially sight-threatening
+        # corneal surface presentation, skip free-form LLM rewriting to avoid semantic drift.
+        mapping = self._surface_sign_profile(raw_query)
+        if mapping["high_risk_surface"]:
+            seeded = (
+                "cornea corneal infiltrate corneal ulcer infectious keratitis microbial keratitis "
+                "red eye tearing pain photophobia urgent ophthalmology"
+            )
+            return self.apply_symptom_sign_mapping_to_query(raw_query, seeded, max_terms=15)
+
         system_prompt = (
             "You are a clinical search query generator for ophthalmology.\n"
             "Convert the patient's question into a SHORT search query using "
@@ -265,12 +334,12 @@ class MedGemmaGenerator:
             skip_thought=True,
         )
 
-        # The strict prompt already enforces keyword-only output. 
-        # Just do a safe basic strip to avoid mangling valid medical hyphenations.
-        refined = refined.replace('"', '').replace("'", "").strip()
-        
-        # Fallback to original if refinement is too short
-        return refined if len(refined) >= 5 else raw_query
+        # Post-process aggressively to remove repetition and prompt leakage.
+        refined = self.normalize_retrieval_query(refined, max_terms=13)
+
+        # Fallback to original if refinement is too short, then apply symptom-sign mapping.
+        base_query = refined if len(refined) >= 5 else raw_query
+        return self.apply_symptom_sign_mapping_to_query(raw_query, base_query, max_terms=13)
 
     def _parse_eyeclip_findings(self, visual_findings: str) -> Optional[dict]:
         """Parse EyeCLIP output into structured format."""
@@ -309,6 +378,117 @@ class MedGemmaGenerator:
             text = json_match.group(1)
         return text
 
+    def normalize_retrieval_query(
+        self,
+        text: str,
+        max_terms: int = 14,
+        banned_tokens: Optional[set[str]] = None,
+    ) -> str:
+        """Normalize query text into compact, deduplicated retrieval keywords."""
+        if not text:
+            return ""
+
+        cleaned = self._clean_query_output(text)
+
+        # Keep the trailing payload if prompt examples leaked into output.
+        lowered = cleaned.lower()
+        for marker in ("output:", "query:", "patient:", "context:", "prior questions:"):
+            idx = lowered.rfind(marker)
+            if idx != -1:
+                cleaned = cleaned[idx + len(marker):].strip()
+                lowered = cleaned.lower()
+
+        tokens = re.findall(r"[a-zA-Z][a-zA-Z0-9'-]*", cleaned)
+
+        deduped: List[str] = []
+        seen = set()
+        for raw_tok in tokens:
+            tok = raw_tok.lower().strip("'\".,;:!?()[]{}")
+            if not tok:
+                continue
+            canonical = TOKEN_CANONICAL_MAP.get(tok)
+            if canonical:
+                tok = canonical
+            if len(tok) <= 2 and tok not in MEDICAL_ACRONYMS:
+                continue
+            if tok in QUERY_NOISE_TOKENS and tok not in MEDICAL_ACRONYMS:
+                continue
+            if banned_tokens and tok in banned_tokens and tok not in MEDICAL_ACRONYMS:
+                continue
+            if tok in seen:
+                continue
+
+            seen.add(tok)
+            deduped.append(tok)
+            if len(deduped) >= max_terms:
+                break
+
+        return " ".join(deduped)
+
+    def _surface_sign_profile(self, text: str) -> Dict[str, bool]:
+        """Classify whether language suggests a visible anterior-segment emergency."""
+        q = (text or "").lower()
+        has_spot = any(re.search(p, q) for p in SURFACE_SPOT_PATTERNS)
+        has_surface_location = any(re.search(p, q) for p in SURFACE_LOCATION_PATTERNS)
+        inflammatory_hits = sum(bool(re.search(p, q)) for p in INFLAMMATORY_FEATURE_PATTERNS)
+        has_inflammation = inflammatory_hits >= 1
+        has_fundus_context = any(re.search(p, q) for p in FUNDUS_CONTEXT_PATTERNS)
+        has_eye_reference = bool(re.search(r"\b(eye|cornea|iris|conjunctiva)\b", q))
+
+        contact_lens_surface_risk = bool(re.search(r"contact\s+lens|lens\s+wearer", q)) and has_inflammation
+
+        high_risk_surface = (
+            (
+                has_spot
+                and has_inflammation
+                and (has_surface_location or has_eye_reference)
+            )
+            or (contact_lens_surface_risk and has_spot)
+        ) and not has_fundus_context
+
+        return {
+            "has_spot": has_spot,
+            "has_surface_location": has_surface_location,
+            "has_inflammation": has_inflammation,
+            "has_fundus_context": has_fundus_context,
+            "has_eye_reference": has_eye_reference,
+            "high_risk_surface": high_risk_surface,
+        }
+
+    def apply_symptom_sign_mapping_to_query(
+        self,
+        raw_query: str,
+        candidate_query: str,
+        max_terms: int = 18,
+    ) -> str:
+        """
+        Enforce clinically safe symptom-sign mapping for retrieval.
+
+        If user describes a visible white spot on the eye surface with inflammatory
+        symptoms, bias retrieval to corneal surface emergencies and suppress
+        posterior-segment distractors unless fundus context is explicit.
+        """
+        mapping = self._surface_sign_profile(raw_query)
+        merged = f"{candidate_query} {raw_query}".strip()
+
+        if mapping["high_risk_surface"]:
+            seeded = (
+                "cornea corneal infiltrate corneal ulcer infectious keratitis microbial keratitis "
+                "red eye tearing pain photophobia surface lesion urgent ophthalmology"
+            )
+            merged = f"{seeded} {merged}"
+
+        banned_tokens = None
+        if mapping["high_risk_surface"] and not mapping["has_fundus_context"]:
+            banned_tokens = POSTERIOR_SEGMENT_MISLEADING_TOKENS
+
+        normalized = self.normalize_retrieval_query(
+            merged,
+            max_terms=max_terms,
+            banned_tokens=banned_tokens,
+        )
+        return normalized if normalized else self.normalize_retrieval_query(candidate_query, max_terms=max_terms)
+
     # ── Context-Aware Query Rewriting for Follow-ups ─────────────────────────
     def rewrite_query_for_retrieval(
         self,
@@ -316,17 +496,18 @@ class MedGemmaGenerator:
         session_state: Optional[ClinicalSessionState] = None,
         visual_findings: Optional[str] = None,
         image_path: Optional[str] = None,
+        recent_history: Optional[list] = None,
     ) -> str:
         """
         Rewrite a follow-up query into a standalone, retrieval-optimized query
-        using pinned clinical context from session state.
+        using pinned clinical context from session state and prior message history.
         
         Example:
-          Input: "What to do now?" + {condition: "drusen", anatomy: "retina"}
+          Input: "What to do now?" + {condition: "drusen", anatomy: "retina"} + recent_history="I also have floaters"
           Output: "drusen AMD management monitoring treatment options"
         """
         # Build context injection from session state
-        state_context = session_state.to_query_context() if session_state else ""
+        state_context = session_state.to_query_context(include_provisional=True) if session_state else ""
         
         # Build EyeCLIP hint
         eyeclip_hint = ""
@@ -337,6 +518,14 @@ class MedGemmaGenerator:
                 if probable:
                     eyeclip_hint = f" [EyeCLIP: {', '.join(probable)}]"
         
+        # Build history context
+        history_str = ""
+        if recent_history:
+            # Drop the current query from history if it's there
+            hist_to_use = [q for q in recent_history if q != current_query]
+            if hist_to_use:
+                history_str = f"\nPrior Questions: {' → '.join(hist_to_use)}"
+        
         system_prompt = (
             "You are a clinical query rewriter for ophthalmology RAG.\n"
             "Rewrite the patient's follow-up question into a STANDALONE search query "
@@ -344,23 +533,27 @@ class MedGemmaGenerator:
             "RULES:\n"
             "- Output ONLY 5-10 clinical keywords. Nothing else.\n"
             "- If the query is ambiguous (e.g., 'What to do now?'), use the provided "
-            "  clinical context to make it specific.\n"
+            "  clinical context and Prior Questions to make it specific.\n"
             "- Include anatomy and condition terms from the context injection.\n"
+            "- If the user mentions 'it/this/that', resolve it using the Context and Prior Questions.\n"
             "- If EyeCLIP findings are provided, include detected conditions.\n"
             "- Output in ENGLISH only.\n\n"
             "EXAMPLES:\n"
             "Context: [anatomy:retina | condition:age-related macular degeneration]\n"
+            "Prior Questions: What is AMD?\n"
             "Query: What to do now?\n"
             "Output: AMD management monitoring AREDS treatment progression\n\n"
             "Context: [anatomy:retina | condition:diabetic retinopathy]\n"
+            "Prior Questions: I have blurry vision\n"
             "Query: Is this serious?\n"
             "Output: diabetic retinopathy severity staging progression risk\n\n"
             "Context: [anatomy:lens | condition:cataract]\n"
+            "Prior Questions: My doctor said I have a cataract\n"
             "Query: What are my options?\n"
             "Output: cataract surgery options IOL timing recovery"
         )
         
-        user_text = f"Context:{state_context}{eyeclip_hint}\nPatient: {current_query}"
+        user_text = f"Context:{state_context}{eyeclip_hint}{history_str}\nPatient: {current_query}"
         user_content = self._build_multimodal_content(user_text, image_path)
         
         messages = [
@@ -377,11 +570,12 @@ class MedGemmaGenerator:
             skip_thought=True,
         )
         
-        # Post-process: extract clean search terms
-        rewritten = self._clean_query_output(rewritten)
-        
-        # Fallback to current query if rewriting yielded nothing or too little
-        return rewritten if len(rewritten) >= 5 else current_query
+        # Post-process: keep rewritten query compact and retrieval-safe.
+        rewritten = self.normalize_retrieval_query(rewritten, max_terms=12)
+
+        # Fallback to current query if rewriting yielded nothing or too little.
+        base_query = rewritten if len(rewritten) >= 5 else current_query
+        return self.apply_symptom_sign_mapping_to_query(current_query, base_query, max_terms=12)
 
     # ── Context Formatting ───────────────────────────────────────────────────
     def build_context_block(self, context_docs: list[Document]) -> str:
@@ -496,7 +690,7 @@ class MedGemmaGenerator:
         # Build session state context for generation
         state_block = ""
         if session_state:
-            state_context = session_state.to_generation_context()
+            state_context = session_state.to_generation_context(include_provisional=True)
             if state_context:
                 state_block = f"\nCLINICAL CONTEXT FROM PRIOR CONVERSATION:\n{state_context}\n\n"
         
@@ -510,12 +704,18 @@ class MedGemmaGenerator:
             context_anatomy.update(doc_anat)
         
         anatomy_mismatch = query_anatomy and context_anatomy and not query_anatomy.intersection(context_anatomy)
+
+        mapping = self._surface_sign_profile(raw_query)
+        high_risk_corneal_pattern = mapping["high_risk_surface"]
+        has_surface_visible_pattern = mapping["has_spot"] and mapping["has_surface_location"]
+        has_fundus_context = mapping["has_fundus_context"]
         
         base_rules = (
             "RULES:\n"
             "1. Use simple, everyday language. Explain medical terms clearly.\n"
             "2. Be warm and reassuring but honest. Do not make firm diagnoses.\n"
-            "3. Structure: direct answer → possible causes → home care → when to see doctor.\n"
+            "3. Structure: direct answer → possible causes → safety advice and when to seek care. "
+            "Include home care ONLY when presentation appears mild and non-urgent.\n"
             "4. Cite sources as [Source N] ONLY if fact appears in that source. NEVER invent citations.\n"
             "5. If reference texts lack information, say so. DO NOT GUESS.\n"
             "6. Keep answer concise (150-250 words).\n"
@@ -526,17 +726,43 @@ class MedGemmaGenerator:
             "10. If an IMAGE is attached, your interpretation must be grounded in the "
             "MEDICAL REFERENCE TEXTS. Do not invent findings beyond what EyeCLIP reported "
             "and what the sources support.\n"
+            "11. Strict anatomy constraint: If the patient reports a visible spot/patch on the eye "
+            "that can be seen externally (including mirror-visible language), treat it primarily as "
+            "an anterior/surface finding (cornea, conjunctiva, iris) unless explicit posterior-segment "
+            "evidence is provided.\n"
         )
+
+        if not has_fundus_context:
+            base_rules += (
+                "12. Negative constraint: Do NOT mention Roth spots or retinal vascular changes "
+                "unless the user explicitly mentions dilated fundus exam, retinal photo, fundus image, "
+                "or equivalent posterior-segment imaging.\n"
+            )
+
+        if has_surface_visible_pattern and not has_fundus_context:
+            base_rules += (
+                "13. For visible surface-spot presentations, avoid posterior-segment anchoring "
+                "(retina/fundus vascular causes) unless supported by explicit retinal examination data.\n"
+            )
+
+        if high_risk_corneal_pattern:
+            base_rules += (
+                "14. HIGH-RISK PATTERN: White corneal/front-eye spot with inflammatory symptoms. "
+                "Prioritize possible infectious keratitis/corneal ulcer in differential and explicitly recommend "
+                "urgent in-person ophthalmic evaluation within 24 hours to reduce risk of permanent vision loss.\n"
+                "15. For high-risk pattern, avoid suggesting home care as sufficient treatment. "
+                "You may include temporary precautions, but urgent in-person care must be the main recommendation.\n"
+            )
         
         if anatomy_mismatch:
             base_rules += (
-                "11. ANATOMICAL MISMATCH DETECTED: The retrieved sources discuss a different eye structure "
+                "16. ANATOMICAL MISMATCH DETECTED: The retrieved sources discuss a different eye structure "
                 "than the patient's question. Acknowledge this limitation and suggest consulting a specialist.\n"
             )
         
         if target_language != "English":
             base_rules += (
-                f"12. TRANSLATION REQUIRED: Write ENTIRE response in {target_language}.\n"
+                f"17. TRANSLATION REQUIRED: Write ENTIRE response in {target_language}.\n"
             )
         
         if correction_context:
@@ -602,6 +828,38 @@ class MedGemmaGenerator:
             visual_findings=visual_findings,
             turn_id=turn_id,
         )
+
+    def extract_entities_from_turn(
+        self,
+        query_text: str,
+        answer_text: str,
+        visual_findings: Optional[str] = None,
+        turn_id: int = 0,
+    ) -> List[ClinicalEntity]:
+        """Extract entities from both query and answer, then merge for state updates."""
+        query_entities = self.entity_extractor.extract_entities(
+            text=query_text,
+            visual_findings=None,
+            turn_id=turn_id,
+            source="user_query",
+        )
+        answer_entities = self.entity_extractor.extract_entities(
+            text=answer_text,
+            visual_findings=visual_findings,
+            turn_id=turn_id,
+            source="answer",
+        )
+
+        merged: Dict[tuple, ClinicalEntity] = {}
+        for entity in query_entities + answer_entities:
+            key = ((entity.normalized or entity.text.lower()), entity.entity_type)
+            prev = merged.get(key)
+            if prev is None or entity.confidence > prev.confidence:
+                merged[key] = entity
+            elif prev is not None:
+                prev.confidence = max(prev.confidence, entity.confidence)
+
+        return list(merged.values())
 
     # ── Grounding Verification with Anatomy Check ────────────────────────────
     def verify_grounding(

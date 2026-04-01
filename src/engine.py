@@ -20,8 +20,9 @@ Usage:
 import os
 import uuid
 import time
+import re
 from pathlib import Path
-from typing import Optional, Tuple, List, Union
+from typing import Optional, Tuple, List, Union, Any
 
 # ─── GPU Configuration ────────────────────────────────────────────────────────
 if "CUDA_VISIBLE_DEVICES" not in os.environ:
@@ -155,6 +156,113 @@ class QueryEngine:
 
         return self.vision_agent.analyze_image(image_path, modality_hint=modality_hint)
 
+    def _is_context_light_followup(self, query: str) -> bool:
+        """Detect short/vague follow-ups that lack enough standalone clinical signal."""
+        text = (query or "").strip().lower()
+        if not text:
+            return True
+
+        tokens = re.findall(r"[a-z][a-z'-]*", text)
+        if len(tokens) <= 3:
+            return True
+
+        medical_cues = {
+            "eye", "cornea", "retina", "iris", "lens", "macula", "optic", "nerve",
+            "pain", "redness", "watering", "discharge", "itching", "blurry", "vision",
+            "floaters", "flashes", "photophobia", "spot", "ulcer", "keratitis",
+            "conjunctivitis", "uveitis", "glaucoma", "cataract", "drusen", "edema",
+            "exudates", "tearing", "swelling", "infection", "foreign", "body",
+        }
+
+        vague_tokens = {
+            "what", "now", "next", "this", "that", "it", "same", "serious", "do",
+            "should", "can", "how", "about", "then", "today", "again", "okay",
+        }
+
+        has_medical = any(tok in medical_cues for tok in tokens)
+        vague_ratio = sum(1 for tok in tokens if tok in vague_tokens) / max(len(tokens), 1)
+
+        return (not has_medical and len(tokens) <= 10) or vague_ratio >= 0.5
+
+    def _last_substantive_user_query(
+        self,
+        recent_queries: Optional[List[str]],
+        current_query: str,
+    ) -> Optional[str]:
+        """Return the most recent prior user query with clinical signal."""
+        if not recent_queries:
+            return None
+
+        for q in reversed(recent_queries):
+            if not q or q == current_query:
+                continue
+            if not self._is_context_light_followup(q):
+                return q
+        return None
+
+    def _build_clinical_rerank_query(
+        self,
+        *,
+        prompt: str,
+        refined_query: str,
+        session: Optional[ClinicalSessionState],
+        recent_queries: Optional[List[str]],
+    ) -> str:
+        """
+        Compose a rerank query robust for short follow-ups:
+        current utterance + stable session terms + last substantive user query + compact refined terms.
+        """
+        signals: List[str] = [prompt]
+
+        if session is not None and session.has_context(threshold=0.3, include_provisional=True):
+            session_terms = session.to_query_terms(include_provisional=True)
+            if session_terms:
+                # Put session memory early so it is not clipped by downstream max-term limits.
+                signals.insert(0, session_terms)
+
+        if self._is_context_light_followup(prompt):
+            last_substantive = self._last_substantive_user_query(recent_queries, prompt)
+            if last_substantive:
+                signals.append(last_substantive)
+
+        compact_refined = self.generator.normalize_retrieval_query(refined_query or "", max_terms=12)
+        if compact_refined:
+            signals.append(compact_refined)
+
+        merged = self._merge_query_signals(signals, max_terms=28)
+        return merged if merged else prompt
+
+    def _merge_query_signals(self, signals: List[str], max_terms: int = 18) -> str:
+        """Merge multiple query signals without starving later context terms."""
+        token_lists: List[List[str]] = []
+        for signal in signals:
+            if not signal:
+                continue
+            normalized = self.generator.normalize_retrieval_query(signal, max_terms=max_terms * 2)
+            if normalized:
+                token_lists.append(normalized.split())
+
+        merged: List[str] = []
+        seen = set()
+        idx = 0
+        while len(merged) < max_terms:
+            progressed = False
+            for tokens in token_lists:
+                if idx >= len(tokens):
+                    continue
+                tok = tokens[idx].strip().lower()
+                if tok and tok not in seen:
+                    seen.add(tok)
+                    merged.append(tok)
+                    if len(merged) >= max_terms:
+                        break
+                progressed = True
+            if not progressed:
+                break
+            idx += 1
+
+        return " ".join(merged)
+
     # ── Full Pipeline (UPDATED with session awareness + EyeCLIP integration) ─
     def ask(
         self,
@@ -165,7 +273,10 @@ class QueryEngine:
         session_id: Optional[str] = None,
         recent_history: Optional[List[str]] = None,
         patient_profile: Optional[dict] = None,
-    ) -> Union[Tuple[str, Optional[str]], Tuple[str, Optional[str], str]]:
+        fast_mode: bool = False,
+        use_session_state: Optional[bool] = None,
+        return_trace: bool = False,
+    ) -> Any:
         """
         Complete self-correcting RAG pipeline with optional session awareness.
         
@@ -184,19 +295,46 @@ class QueryEngine:
             Otherwise:
                 (answer_text, visual_findings_or_None)
         """
+        request_session_id = session_id
+        session_enabled = self.enable_session_state if use_session_state is None else bool(use_session_state)
+
+        trace: dict[str, Any] = {
+            "num_sources": 0,
+            "sources": [],
+            "retries": 0,
+            "flagged_claims": [],
+            "time": 0.0,
+        }
+        start_time = time.time()
+
+        def _format_return(answer_text: str, visual: Optional[str], active_session: Optional[ClinicalSessionState]) -> Any:
+            if session_enabled and request_session_id is None and active_session is not None:
+                base = (answer_text, visual, active_session.session_id)
+            else:
+                base = (answer_text, visual)
+            if return_trace:
+                return (*base, trace)
+            return base
+
         # ── Step -1: Emergency Triage ────────────────────────────────────────
         emergency_response = check_red_flags(raw_query)
         if emergency_response:
             if verbose:
                 print(f"[QueryEngine] 🚨 Red Flag Triggered: {raw_query}")
-            return (emergency_response, None)
+            trace["verdict"] = "SAFETY TRIAGE bypass"
+            trace["time"] = 0.0
+            return _format_return(emergency_response, None, None)
 
         # ── Session Setup ───────────────────────────────────────────────────
-        session = self._get_or_create_session(session_id)
-        current_turn = session.total_turns + 1 if self.enable_session_state else 1
+        session: Optional[ClinicalSessionState] = None
+        if session_enabled:
+            session = self._get_or_create_session(session_id)
+            current_turn = session.total_turns + 1
+        else:
+            current_turn = 1
         
         # Check if session should be reset
-        if self.enable_session_state and session.should_reset():
+        if session_enabled and session is not None and session.should_reset():
             if verbose:
                 print(f"[QueryEngine] Resetting session due to inactivity/topic drift")
             session = session.reset_for_new_topic()
@@ -214,7 +352,7 @@ class QueryEngine:
             # If the session already has image-derived context (anatomy/conditions/findings),
             # a new image means a new clinical topic. Reset image-derived context so the
             # new EyeCLIP findings aren't blocked by reinforced old context.
-            if self.enable_session_state and session.has_context():
+            if session_enabled and session is not None and session.has_context():
                 session.reset_for_new_image()
                 if verbose:
                     print("[QueryEngine] 🔄 Cleared old image context for new image")
@@ -225,9 +363,10 @@ class QueryEngine:
         
         # Determine if this is a follow-up with pinned clinical context
         is_followup = (
-            self.enable_session_state and 
+            session_enabled and
+            session is not None and
             current_turn > 1 and 
-            session.has_context()
+            session.has_context(include_provisional=True)
         )
         
         if is_followup:
@@ -237,6 +376,7 @@ class QueryEngine:
                 session_state=session,
                 visual_findings=visual_findings,
                 image_path=image_path,
+                recent_history=recent_history,
             )
             if verbose:
                 print(f"  [Rewritten] {retrieval_query}")
@@ -260,42 +400,105 @@ class QueryEngine:
             if verbose:
                 print(f"  [Refined] {retrieval_query}")
 
+        # Always enrich retrieval query with high-confidence persistent session terms.
+        if session_enabled and session is not None and session.has_context(threshold=0.3, include_provisional=True):
+            session_terms = session.to_query_terms(include_provisional=True)
+            if session_terms:
+                retrieval_query = self._merge_query_signals([session_terms, retrieval_query], max_terms=18)
+                if verbose:
+                    print(f"  [Refined+Session] {retrieval_query}")
+
+        # Final guardrail: enforce compact deduplicated retrieval keywords.
+        normalized_query = self.generator.normalize_retrieval_query(retrieval_query, max_terms=18)
+        if normalized_query:
+            retrieval_query = normalized_query
+            if verbose:
+                print(f"  [Normalized Query] {retrieval_query}")
+
+        retrieval_query = self.generator.apply_symptom_sign_mapping_to_query(
+            raw_query=raw_query,
+            candidate_query=retrieval_query,
+            max_terms=18,
+        )
+        if verbose:
+            print(f"  [Mapped Query] {retrieval_query}")
+        trace["refined_query"] = retrieval_query
+
         # ── Step 2: Retrieve Documents ───────────────────────────────────────
-        # When k >= 5, use dual-path retrieval:
-        #   Path A (k-2 slots): refined/rewritten query  → textbook precision
-        #   Path B (2 slots):   raw query + session context → PubMed breadth
-        # This prevents over-technical refinement from suppressing article hits.
-        if k >= 5:
-            k_refined = k - 2
-            k_raw = 2
+        child_hits_refined = self.retriever.hybrid_retriever.invoke(retrieval_query)[: max(k * 4, 8)]
 
-            # Path A: refined query
-            refined_docs = self.retriever.search(retrieval_query, k=k_refined, verbose=verbose)
+        raw_augmented_query = raw_query
+        raw_signal_parts: List[str] = [raw_query]
+        if self._is_context_light_followup(raw_query):
+            last_substantive = self._last_substantive_user_query(recent_history, raw_query)
+            if last_substantive:
+                raw_signal_parts.append(last_substantive)
 
-            # Path B: raw query augmented with running session context
-            raw_augmented = raw_query
-            if self.enable_session_state and session:
-                ctx_suffix = session.to_query_context()
-                if ctx_suffix:
-                    raw_augmented = f"{raw_query} {ctx_suffix}"
-            if verbose:
-                print(f"[QueryEngine] Dual-path: raw query retrieval for PubMed breadth...")
-                print(f"  [Raw+Context] {raw_augmented}")
-            raw_docs = self.retriever.search(raw_augmented, k=k_raw, verbose=verbose)
+        if session_enabled and session is not None and session.has_context(threshold=0.3, include_provisional=True):
+            session_terms = session.to_query_terms(include_provisional=True)
+            if session_terms:
+                raw_signal_parts.insert(0, session_terms)
 
-            # Merge with deduplication by parent_id
-            seen_pids = {d.metadata.get("parent_id") for d in refined_docs}
-            context_docs = list(refined_docs)
-            for doc in raw_docs:
-                pid = doc.metadata.get("parent_id")
-                if pid not in seen_pids:
-                    context_docs.append(doc)
-                    seen_pids.add(pid)
-            
-            if verbose:
-                print(f"[QueryEngine] Merged: {len(refined_docs)} refined + {len(context_docs) - len(refined_docs)} raw-unique = {len(context_docs)} total")
-        else:
-            context_docs = self.retriever.search(retrieval_query, k=k, verbose=verbose)
+        raw_augmented_query = self._merge_query_signals(raw_signal_parts, max_terms=18)
+
+        normalized_raw_query = self.generator.normalize_retrieval_query(raw_augmented_query, max_terms=18)
+        raw_retrieval_query = normalized_raw_query if normalized_raw_query else raw_augmented_query
+        raw_retrieval_query = self.generator.apply_symptom_sign_mapping_to_query(
+            raw_query=raw_query,
+            candidate_query=raw_retrieval_query,
+            max_terms=18,
+        )
+        if verbose:
+            print(f"[QueryEngine] Raw-anchor retrieval query: {raw_retrieval_query}")
+
+        child_hits_raw = self.retriever.hybrid_retriever.invoke(raw_retrieval_query)[: max(k * 3, 6)]
+
+        merged_child_hits = []
+        seen_child_keys = set()
+        for child in child_hits_refined + child_hits_raw:
+            key = (
+                child.metadata.get("parent_id"),
+                child.metadata.get("source"),
+                child.metadata.get("section_path"),
+                child.page_content[:120],
+            )
+            if key in seen_child_keys:
+                continue
+            seen_child_keys.add(key)
+            merged_child_hits.append(child)
+
+        rerank_query = self._build_clinical_rerank_query(
+            prompt=raw_query,
+            refined_query=retrieval_query,
+            session=session,
+            recent_queries=recent_history,
+        )
+        rerank_query = self.generator.apply_symptom_sign_mapping_to_query(
+            raw_query=raw_query,
+            candidate_query=rerank_query,
+            max_terms=28,
+        )
+        reranked_children = self.retriever._rerank(rerank_query, merged_child_hits, top_k=max(k * 2, 4))
+
+        if verbose and reranked_children:
+            print("[QueryEngine] Top reranked child hits:")
+            for i, child in enumerate(reranked_children[: min(len(reranked_children), max(k, 3))], 1):
+                src = child.metadata.get("source", "N/A")
+                sp = child.metadata.get("section_path", "N/A")
+                score = child.metadata.get("rerank_score")
+                score_txt = f"{float(score):.4f}" if isinstance(score, (int, float)) else "N/A"
+                print(f"  [{i}] score={score_txt} [{src}] {sp}")
+
+        seen_parents, context_docs = set(), []
+        for child in reranked_children:
+            p_id = child.metadata.get("parent_id")
+            if p_id and p_id not in seen_parents:
+                parent_doc = self.retriever.parent_store.get(p_id)
+                if parent_doc:
+                    context_docs.append(parent_doc)
+                    seen_parents.add(p_id)
+            if len(context_docs) >= k:
+                break
 
         # ── Step 2.5: Zero-Recall Fallback ───────────────────────────────────
         if not context_docs:
@@ -318,11 +521,23 @@ class QueryEngine:
                 "to answer your question. Please consult an eye care professional."
             )
             if self.enable_session_state:
-                session.total_turns = current_turn
-                session.last_active_turn = current_turn
-                self._persist_session(session)
+                if session_enabled and session is not None:
+                    session.total_turns = current_turn
+                    session.last_active_turn = current_turn
+                    self._persist_session(session)
             
-            return (fallback, visual_findings)
+            trace["verdict"] = "N/A"
+            return _format_return(fallback, visual_findings, session)
+
+        trace["num_sources"] = len(context_docs)
+        trace["sources"] = [
+            {
+                "source": doc.metadata.get("source", "?"),
+                "section_path": doc.metadata.get("section_path", "?"),
+                "content": doc.page_content,
+            }
+            for doc in context_docs
+        ]
 
         context_block = self.generator.build_context_block(context_docs)
 
@@ -333,7 +548,7 @@ class QueryEngine:
         answer = self.generator.generate_answer(
             raw_query=raw_query,
             context_docs=context_docs,
-            session_state=session if self.enable_session_state else None,
+            session_state=session if session_enabled else None,
             correction_context=None,
             patient_profile=patient_profile,
             recent_history=recent_history,
@@ -346,21 +561,23 @@ class QueryEngine:
             print("\n[QueryEngine] Verifying answer grounding...")
         
         # Detect query anatomy for verification
-        query_anatomy = self.generator._detect_anatomy(raw_query) if self.enable_session_state else None
-        
-        grounding_method = self.config.get("grounding_method", "nli")
-        grounding = self.generator.verify_grounding(
-            answer, 
-            context_block, 
-            query_anatomy=query_anatomy,
-            verbose=verbose,
-            method=grounding_method
-        )
-        grounding["retries"] = 0
+        if fast_mode:
+            grounding = {"verdict": "FAST MODE (Unverified)", "flagged_claims": [], "retries": 0}
+        else:
+            query_anatomy = self.generator._detect_anatomy(raw_query) if session_enabled else None
+            grounding_method = self.config.get("grounding_method", "nli")
+            grounding = self.generator.verify_grounding(
+                answer,
+                context_block,
+                query_anatomy=query_anatomy,
+                verbose=verbose,
+                method=grounding_method,
+            )
+            grounding["retries"] = 0
 
         # ── Step 5: Self-Correction Loop ─────────────────────────────────────
         retries = 0
-        while grounding["verdict"] == "FAIL" and retries < MAX_CORRECTION_RETRIES:
+        while (not fast_mode) and grounding["verdict"] == "FAIL" and retries < MAX_CORRECTION_RETRIES:
             retries += 1
             if verbose:
                 print(f"\n[QueryEngine] ⚠️  Grounding FAILED — self-correcting (attempt {retries})...")
@@ -373,7 +590,7 @@ class QueryEngine:
                 raw_query,
                 context_docs,
                 correction_context=flagged,
-                session_state=session if self.enable_session_state else None,
+                session_state=session if session_enabled else None,
                 patient_profile=patient_profile,
                 recent_history=recent_history,
                 visual_findings=visual_findings,
@@ -390,17 +607,22 @@ class QueryEngine:
             )
             grounding["retries"] = retries
 
+        trace["verdict"] = grounding.get("verdict", "N/A")
+        trace["retries"] = retries
+        trace["flagged_claims"] = grounding.get("flagged_claims", [])
+
         # ── Step 6: Extract Entities & Update Session State ──────────────────
-        if self.enable_session_state:
-            # Extract entities from final answer + EyeCLIP findings
-            entities = self.generator.extract_entities_from_answer(
-                answer=answer,
+        if session_enabled and session is not None:
+            entities = self.generator.extract_entities_from_turn(
+                query_text=raw_query,
+                answer_text=answer,
                 visual_findings=visual_findings,
                 turn_id=current_turn,
             )
-            
+
+            text_for_extraction = f"Patient Question: {raw_query}\nClinical Answer: {answer}"
             # Update session with merged entities (EyeCLIP + text)
-            session.update_from_entities(entities, current_turn, text=answer)
+            session.update_from_entities(entities, current_turn, text=text_for_extraction)
             
             # Persist to disk
             self._persist_session(session)
@@ -410,18 +632,15 @@ class QueryEngine:
                 if ctx:
                     print(f"[Session] Updated context: {ctx}")
 
+        trace["visual_findings"] = visual_findings
+        trace["time"] = time.time() - start_time
+
         # ── Return ───────────────────────────────────────────────────────────
         if verbose:
             status = "✅ GROUNDED" if grounding["verdict"] == "PASS" else "⚠️ PARTIALLY GROUNDED"
             print(f"\n[QueryEngine] Final status: {status}")
 
-        # Handle return value based on session tracking
-        if self.enable_session_state and session_id is None:
-            # Return new session_id for caller to persist
-            return (answer, visual_findings, session.session_id)
-        else:
-            # Backward compatible: 2-tuple return
-            return (answer, visual_findings)
+        return _format_return(answer, visual_findings, session)
 
     # ── Utility Methods ──────────────────────────────────────────────────────
     def clear_session_cache(self):

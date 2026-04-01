@@ -4,7 +4,9 @@ from typing import Optional, List, Dict, Any, Set
 from dataclasses import dataclass, field
 from enum import Enum
 import json
+import os
 import re
+from pathlib import Path
 
 class EntityType(Enum):
     ANATOMY = "anatomy"
@@ -187,10 +189,201 @@ class ClinicalEntityExtractor:
         "lens": ["lens", "crystalline", "anterior capsule", "posterior capsule"],
         "cornea": ["cornea", "corneal", "epithelium", "endothelium", "stroma"],
     }
+
+    SYMPTOM_PATTERNS = {
+        "blurry vision": [r"\bblurr?y vision\b", r"\bblurred vision\b", r"\bvision blur\b"],
+        "floaters": [r"\bfloaters?\b"],
+        "flashes": [r"\bflashes?\b", r"\bphotopsia\b"],
+        "photophobia": [r"\bphotophobia\b", r"\blight sensitivity\b"],
+        "eye pain": [r"\beye pain\b", r"\bocular pain\b", r"\bpainful eye\b"],
+        "redness": [r"\beye redness\b", r"\bred eye\b", r"\bocular redness\b", r"\bredness\b"],
+        "watering": [r"\bwatering\b", r"\bwatery eyes?\b", r"\btearing\b", r"\bexcessive tearing\b", r"\bepiphora\b"],
+        "dryness": [
+            r"\bdry eye\b",
+            r"\bdry eyes\b",
+            r"\beye dryness\b",
+            r"\bocular dryness\b",
+            r"\b(eye|eyes)\s+(feel\s+)?dry\b",
+            r"\beyes?\s+are\s+dry\b",
+        ],
+        "itching": [
+            r"\bitchy eyes?\b",
+            r"\beye itch\w*\b",
+            r"\bitching\b",
+            r"\bocular itch\w*\b",
+            r"\bitchy\b",
+        ],
+        "burning": [r"\bburning\b", r"\bburning sensation\b", r"\beye burn\w*\b", r"\bocular burn\w*\b"],
+        "foreign body sensation": [r"\bforeign body sensation\b", r"\bgritty\b", r"\bsandy sensation\b"],
+        "discharge": [r"\beye discharge\b", r"\bdischarge\b", r"\bpus\b", r"\bsticky eyes?\b"],
+        "swelling": [r"\beyelid swelling\b", r"\bswollen eyelid\b", r"\beye swelling\b", r"\bswelling\b"],
+        "double vision": [r"\bdouble vision\b", r"\bdiplopia\b"],
+        "halos": [r"\bhalos?\b", r"\bhaloes?\b"],
+        "metamorphopsia": [r"\bmetamorphopsia\b", r"\bdistorted vision\b"],
+        "scotoma": [r"\bscotoma\b", r"\bblind spot\b"],
+        "white spot": [r"\bwhite\s+(spot|patch|dot|mark|opacity|lesion)s?\b"],
+    }
+
+    ANATOMY_PATTERNS = {
+        "cornea": [
+            r"\bcornea\b",
+            r"\bcorneal\b",
+            r"\bfront\s+of\s+(the\s+)?eye\b",
+            r"\bblack\s+part\s+of\s+(the\s+)?eye\b",
+            r"\bspot\s+on\s+(the\s+)?black\s+part\s+of\s+(the\s+)?eye\b",
+        ],
+        "conjunctiva": [r"\bconjunctiva\b", r"\bwhite\s+of\s+(the\s+)?eye\b"],
+    }
+
+    FINDING_PATTERNS = {
+        "drusen": [r"\bdrusen\b"],
+        "macular edema": [r"\bmacular edema\b", r"\bcystoid macular edema\b"],
+        "retinal hemorrhage": [r"\bretinal hemorrhage\b", r"\bhemorrhages?\b", r"\bhaemorrhages?\b"],
+        "hard exudates": [r"\bhard exudates?\b", r"\bexudates?\b"],
+        "roth spots": [r"\broth'?s?\s+spots?\b", r"\broth\s+spots?\b"],
+        "cotton wool spots": [r"\bcotton\s+wool\s+spots?\b"],
+        "neovascularization": [r"\bneovasculari[sz]ation\b", r"\bnew vessels\b"],
+        "optic disc edema": [r"\boptic disc edema\b", r"\bpapilledema\b"],
+    }
+
+    FINDING_TO_SYMPTOM_BRIDGE = {
+        "roth spot": "roth spots",
+        "roth spots": "roth spots",
+        "roth's spot": "roth spots",
+        "roth's spots": "roth spots",
+        "white spot": "white spot",
+        "white spots": "white spots",
+        "cotton wool spots": "cotton wool spots",
+    }
+
+    SYMPTOM_HINT_KEYWORDS = {
+        "pain", "redness", "itch", "watering", "watery", "tearing", "dry", "blur",
+        "blurry", "vision", "photophobia", "floaters", "flashes", "diplopia", "discharge",
+        "burning", "foreign body", "irritation", "sensitivity", "headache", "halos"
+    }
+
+    FINDING_HINT_KEYWORDS = {
+        "spot", "spots", "opacity", "opacities", "hemorrhage", "haemorrhage", "exudate",
+        "edema", "oedema", "lesion", "ulcer", "infiltrate", "deposit", "detachment",
+        "drusen", "neovascular", "scar", "atrophy", "membrane", "hole", "hypopyon",
+        "papilledema", "cotton wool", "roth"
+    }
+
+    MEDICATION_PATTERNS = {
+        "anti-VEGF": [r"\banti\s*-?\s*vegf\b"],
+        "bevacizumab": [r"\bbevacizumab\b", r"\bavastin\b"],
+        "ranibizumab": [r"\branibizumab\b", r"\blucentis\b"],
+        "aflibercept": [r"\baflibercept\b", r"\beylea\b"],
+        "faricimab": [r"\bfaricimab\b", r"\bvabysmo\b"],
+        "timolol": [r"\btimolol\b"],
+        "latanoprost": [r"\blatanoprost\b"],
+        "brimonidine": [r"\bbrimonidine\b"],
+        "dorzolamide": [r"\bdorzolamide\b"],
+        "acetazolamide": [r"\bacetazolamide\b"],
+        "prednisolone": [r"\bprednisolone\b"],
+        "dexamethasone": [r"\bdexamethasone\b"],
+        "loteprednol": [r"\bloteprednol\b"],
+        "artificial tears": [r"\bartificial tears\b", r"\blubricating drops?\b"],
+        "cyclosporine eye drops": [r"\bcyclosporine\b"],
+        "moxifloxacin": [r"\bmoxifloxacin\b"],
+    }
+
+    PROCEDURE_PATTERNS = {
+        "intravitreal injection": [r"\bintravitreal injections?\b", r"\bintravitreal anti\s*-?\s*vegf\b"],
+        "phacoemulsification": [r"\bphaco(emulsification)?\b"],
+        "cataract surgery": [r"\bcataract surgery\b"],
+        "vitrectomy": [r"\bvitrectomy\b"],
+        "laser photocoagulation": [r"\blaser photocoagulation\b", r"\bPRP\b", r"\bpanretinal photocoagulation\b"],
+        "trabeculectomy": [r"\btrabeculectomy\b"],
+        "YAG capsulotomy": [r"\bYAG capsulotomy\b", r"\bposterior capsulotomy\b"],
+    }
+
+    # Dedicated ophthalmic lexicon seed (runtime fallback when no custom file is provided).
+    # This avoids direct dependency on general disease corpora.
+    DEFAULT_OPHTHALMIC_LEXICON: Dict[str, List[str]] = {
+        "condition": [
+            "age-related macular degeneration",
+            "diabetic retinopathy",
+            "central serous chorioretinopathy",
+            "retinal vein occlusion",
+            "retinal artery occlusion",
+            "retinitis pigmentosa",
+            "retinopathy of prematurity",
+            "coats disease",
+            "best vitelliform macular dystrophy",
+            "stargardt disease",
+            "vogt-koyanagi-harada disease",
+            "behcet uveitis",
+            "fuchs endothelial corneal dystrophy",
+            "keratoconus",
+            "pseudoexfoliation glaucoma",
+            "primary open angle glaucoma",
+            "primary angle closure glaucoma",
+            "neovascular glaucoma",
+            "optic neuritis",
+            "papillophlebitis",
+        ],
+        "finding": [
+            "roth spots",
+            "cotton wool spots",
+            "hard exudates",
+            "soft exudates",
+            "drusen",
+            "dot blot hemorrhage",
+            "flame hemorrhage",
+            "cherry red spot",
+            "macular star",
+            "hollenhorst plaque",
+            "keratic precipitates",
+            "cells and flare",
+            "anterior chamber reaction",
+            "snowbanking",
+            "iris bombe",
+            "hypopyon",
+            "hyphema",
+            "vitritis",
+            "disc pallor",
+            "optic disc edema",
+            "cup disc ratio asymmetry",
+            "kayser fleischer ring",
+            "arlt line",
+            "bitot spots",
+            "corneal infiltrate",
+            "epiretinal membrane",
+            "macular hole",
+            "retinal detachment",
+        ],
+        "symptom": [
+            "redness",
+            "watering",
+            "foreign body sensation",
+            "photophobia",
+            "blurry vision",
+            "sudden vision loss",
+            "distorted vision",
+            "double vision",
+            "floaters",
+            "flashes",
+            "halos",
+            "night blindness",
+            "central scotoma",
+            "eye pain",
+            "headache",
+            "white spot",
+            "white spots",
+            "roth spots",
+        ],
+    }
     
     def __init__(self, medgemma_generator):
         self.generator = medgemma_generator
         self._entity_templates = self._load_entity_templates()
+        self._ophthalmic_lexicon = self._load_ophthalmic_lexicon()
+        self._ner_nlp = None
+        self._ner_backend = "none"
+        self._medical_ner_enabled = os.getenv("LVP_MEDICAL_NER", "1").strip() not in {"0", "false", "False"}
+        if self._medical_ner_enabled:
+            self._init_medical_ner()
     
     def _load_entity_templates(self) -> Dict[str, List[str]]:
         """Pre-defined entity templates for few-shot prompting and fallback."""
@@ -207,9 +400,69 @@ class ClinicalEntityExtractor:
             "symptom": [
                 "blurry vision", "floaters", "flashes", "photophobia",
                 "eye pain", "redness", "dryness", "distortion",
-                "metamorphopsia", "scotoma", "double vision", "halos"
+                "metamorphopsia", "scotoma", "double vision", "halos",
+                "white spot", "roth spots", "cotton wool spots"
             ],
             "imaging": list(self.EYECLIP_MODALITY_MAP.values()),
+            "medication": sorted(self.MEDICATION_PATTERNS.keys()),
+            "procedure": sorted(self.PROCEDURE_PATTERNS.keys()),
+        }
+
+    def _load_ophthalmic_lexicon(self) -> Dict[str, List[str]]:
+        """Load dedicated ophthalmic lexicon from repo-owned JSON file.
+
+        Runtime intentionally avoids dependency on broad pre-existing disease corpora.
+        """
+        project_root = Path(__file__).resolve().parents[2]
+        max_terms = int(os.getenv("LVP_OPHTHALMIC_LEXICON_MAX_TERMS", "5000"))
+        lexicon_path = os.getenv(
+            "LVP_OPHTHALMIC_LEXICON_PATH",
+            str(project_root / "data" / "knowledge_base" / "ophthalmic_lexicon.json"),
+        )
+
+        lexicon: Dict[str, Set[str]] = {
+            "condition": set(self.DEFAULT_OPHTHALMIC_LEXICON.get("condition", [])),
+            "finding": set(self.DEFAULT_OPHTHALMIC_LEXICON.get("finding", [])),
+            "symptom": set(self.DEFAULT_OPHTHALMIC_LEXICON.get("symptom", [])),
+        }
+
+        def normalize_term(raw: str) -> Optional[str]:
+            term = re.sub(r"\s+", " ", (raw or "").strip().lower())
+            term = re.sub(r"^[\-•*\d\.)\(\s]+", "", term)
+            term = term.strip(" ,;:")
+            if not term or len(term) < 3 or len(term) > 80:
+                return None
+            return term
+
+        def add_term(category: str, raw: str):
+            norm = normalize_term(raw)
+            if not norm:
+                return
+            if category not in lexicon:
+                return
+            lexicon[category].add(norm)
+
+        path_obj = Path(lexicon_path)
+        if path_obj.exists():
+            try:
+                payload = json.loads(path_obj.read_text(encoding="utf-8"))
+                for category in ("condition", "finding", "symptom"):
+                    values = payload.get(category, []) if isinstance(payload, dict) else []
+                    if isinstance(values, list):
+                        for item in values:
+                            if isinstance(item, str):
+                                add_term(category, item)
+            except Exception as exc:
+                print(f"[EntityExtractor] Failed to load ophthalmic lexicon at {path_obj}: {exc}")
+
+        def ordered(values: Set[str]) -> List[str]:
+            items = sorted(values, key=lambda x: (len(x.split()) > 8, len(x), x))
+            return items[:max_terms]
+
+        return {
+            "condition": ordered(lexicon["condition"]),
+            "finding": ordered(lexicon["finding"]),
+            "symptom": ordered(lexicon["symptom"]),
         }
     
     def extract_entities(
@@ -217,6 +470,7 @@ class ClinicalEntityExtractor:
         text: str,
         visual_findings: Optional[str] = None,
         turn_id: int = 0,
+        source: str = "answer",
     ) -> List[ClinicalEntity]:
         """
         Extract clinical entities from text AND EyeCLIP visual findings.
@@ -229,29 +483,348 @@ class ClinicalEntityExtractor:
         Returns:
             List of ClinicalEntity objects with confidence scores and provenance
         """
-        entities = []
+        entities: List[ClinicalEntity] = []
         
         # ── Step 1: Extract from EyeCLIP visual findings (HIGH CONFIDENCE) ──
         if visual_findings:
             eyeclip_entities = self._extract_from_eyeclip(visual_findings, turn_id)
             entities.extend(eyeclip_entities)
+
+        # ── Step 2: Medical NER extraction (medspaCy/spaCy, if available) ─
+        ner_entities = self._extract_from_medical_ner(text, turn_id, source=source)
+
+        # ── Step 2: Deterministic medical pattern extraction ───────────────
+        rule_entities = self._extract_from_text_rules(text, turn_id, source=source)
         
-        # ── Step 2: Extract from text using LLM ─────────────────────────────
-        text_entities = self._extract_from_text_llm(text, turn_id, visual_findings)
+        # ── Step 3: Extract from text using LLM ─────────────────────────────
+        text_entities = self._extract_from_text_llm(
+            text,
+            turn_id,
+            visual_findings,
+            source=source,
+        )
         
-        # ── Step 3: Merge entities with confidence weighting ────────────────
-        merged_entities = self._merge_entities(entities, text_entities)
+        # ── Step 4: Merge entities with confidence weighting ────────────────
+        merged_entities = self._merge_entities(entities, ner_entities + rule_entities + text_entities)
         
-        # ── Step 4: Filter low-confidence and negated entities ──────────────
+        # ── Step 5: Filter low-confidence and negated entities ──────────────
         filtered = [
             e for e in merged_entities 
             if e.confidence >= 0.5 and not self._is_negated(text, e.text)
         ]
+
+        # Bridge clinically salient findings to symptom memory terms where useful.
+        bridged = self._inject_symptom_bridges(filtered, turn_id)
         
-        # ── Step 5: Tag with Locality and Priority metadata ─────────────
-        final_entities = self._tag_locality_and_priority(filtered)
+        # ── Step 6: Tag with Locality and Priority metadata ─────────────
+        final_entities = self._tag_locality_and_priority(bridged)
         
         return final_entities
+
+    def _init_medical_ner(self):
+        """Initialize optional medical NER backend with graceful fallback.
+
+        Priority:
+        1) medspaCy pipeline (if installed)
+        2) spaCy model (SciSpaCy/standard model, if available)
+        3) spaCy blank pipeline + ophthalmic EntityRuler (light fallback)
+        """
+        # Attempt medspaCy first
+        try:
+            import medspacy  # type: ignore
+
+            # PyRuSH can emit very verbose debug logs by default.
+            try:
+                from loguru import logger as loguru_logger  # type: ignore
+                loguru_logger.disable("PyRuSH")
+            except Exception:
+                pass
+
+            self._ner_nlp = medspacy.load()
+            self._ner_backend = "medspacy"
+            self._ensure_entity_ruler(self._ner_nlp)
+            return
+        except Exception:
+            pass
+
+        # Fallback to spaCy family
+        try:
+            import spacy  # type: ignore
+
+            # Try common biomedical / general English models in order
+            candidate_models = [
+                "en_core_sci_lg",
+                "en_core_sci_md",
+                "en_core_sci_sm",
+                "en_core_web_trf",
+                "en_core_web_sm",
+            ]
+
+            nlp = None
+            for model_name in candidate_models:
+                try:
+                    nlp = spacy.load(model_name)
+                    self._ner_backend = f"spacy:{model_name}"
+                    break
+                except Exception:
+                    continue
+
+            if nlp is None:
+                # Last resort: blank pipeline + EntityRuler dictionary terms
+                nlp = spacy.blank("en")
+                if "sentencizer" not in nlp.pipe_names:
+                    nlp.add_pipe("sentencizer")
+                self._ner_backend = "spacy:blank+ruler"
+
+            self._ner_nlp = nlp
+            self._ensure_entity_ruler(self._ner_nlp)
+        except Exception:
+            self._ner_nlp = None
+            self._ner_backend = "none"
+
+    def _ensure_entity_ruler(self, nlp):
+        """Inject ophthalmic lexicon rules so NER captures domain terms reliably."""
+        try:
+            if "entity_ruler" in nlp.pipe_names:
+                ruler = nlp.get_pipe("entity_ruler")
+            else:
+                if "ner" in nlp.pipe_names:
+                    ruler = nlp.add_pipe("entity_ruler", before="ner")
+                else:
+                    ruler = nlp.add_pipe("entity_ruler")
+
+            patterns = []
+
+            def add_patterns(label: str, values: List[str]):
+                for value in values:
+                    v = value.strip()
+                    if not v:
+                        continue
+                    patterns.append({"label": label, "pattern": v})
+
+            add_patterns("ANATOMY", self._entity_templates["anatomy"])
+            add_patterns("CONDITION", self._entity_templates["condition"])
+            add_patterns("FINDING", self._entity_templates["finding"])
+            add_patterns("SYMPTOM", self._entity_templates["symptom"])
+
+            # Dedicated ophthalmic lexicon terms (repo-owned JSON)
+            add_patterns("CONDITION", self._ophthalmic_lexicon.get("condition", []))
+            add_patterns("FINDING", self._ophthalmic_lexicon.get("finding", []))
+            add_patterns("SYMPTOM", self._ophthalmic_lexicon.get("symptom", []))
+
+            add_patterns("IMAGING", self._entity_templates["imaging"])
+            add_patterns("MEDICATION", list(self.MEDICATION_PATTERNS.keys()))
+            add_patterns("PROCEDURE", list(self.PROCEDURE_PATTERNS.keys()))
+
+            if patterns:
+                ruler.add_patterns(patterns)
+        except Exception:
+            # Keep extraction pipeline resilient even if ruler setup fails.
+            return
+
+    def _map_ner_label(self, label: str, entity_text: str) -> Optional[EntityType]:
+        """Map NER labels from medspaCy/spaCy models to internal EntityType."""
+        label_norm = (label or "").upper()
+
+        label_map = {
+            "ANATOMY": EntityType.ANATOMY,
+            "ANATOMICAL_SITE": EntityType.ANATOMY,
+            "BODY_PART": EntityType.ANATOMY,
+            "CONDITION": EntityType.CONDITION,
+            "DISEASE": EntityType.CONDITION,
+            "DISORDER": EntityType.CONDITION,
+            "DIAGNOSIS": EntityType.CONDITION,
+            "PROBLEM": EntityType.CONDITION,
+            "FINDING": EntityType.FINDING,
+            "SIGN": EntityType.FINDING,
+            "SYMPTOM": EntityType.SYMPTOM,
+            "SIGN_SYMPTOM": EntityType.SYMPTOM,
+            "IMAGING": EntityType.IMAGING,
+            "TEST": EntityType.IMAGING,
+            "MEDICATION": EntityType.MEDICATION,
+            "DRUG": EntityType.MEDICATION,
+            "CHEMICAL": EntityType.MEDICATION,
+            "PROCEDURE": EntityType.PROCEDURE,
+            "TREATMENT": EntityType.PROCEDURE,
+            "THERAPY": EntityType.PROCEDURE,
+        }
+
+        if label_norm in label_map:
+            return label_map[label_norm]
+
+        # Heuristic fallback for free-form labels
+        txt = entity_text.lower().strip()
+        if any(re.search(p, txt, re.I) for pats in self.MEDICATION_PATTERNS.values() for p in pats):
+            return EntityType.MEDICATION
+        if any(re.search(p, txt, re.I) for pats in self.PROCEDURE_PATTERNS.values() for p in pats):
+            return EntityType.PROCEDURE
+        if txt in self._entity_templates["anatomy"]:
+            return EntityType.ANATOMY
+        if txt in self._entity_templates["condition"]:
+            return EntityType.CONDITION
+        if txt in self._entity_templates["finding"]:
+            return EntityType.FINDING
+        if txt in self._entity_templates["symptom"]:
+            return EntityType.SYMPTOM
+
+        return None
+
+    def _extract_from_medical_ner(
+        self,
+        text: str,
+        turn_id: int,
+        source: str = "answer",
+    ) -> List[ClinicalEntity]:
+        """Extract entities from optional medical NER backend (medspaCy/spaCy)."""
+        if not self._ner_nlp or not text.strip():
+            return []
+
+        try:
+            doc = self._ner_nlp(text)
+        except Exception:
+            return []
+
+        extracted: Dict[tuple, ClinicalEntity] = {}
+        base_conf = 0.86 if self._ner_backend.startswith("medspacy") else 0.8
+
+        for ent in getattr(doc, "ents", []):
+            ent_text = ent.text.strip()
+            if len(ent_text) < 3:
+                continue
+
+            entity_type = self._map_ner_label(ent.label_, ent_text)
+            if entity_type is None:
+                continue
+
+            normalized = self._normalize_entity(ent_text, entity_type)
+            key = (normalized, entity_type)
+            confidence = base_conf
+
+            # Short ontology terms are often ambiguous; mildly downweight.
+            if len(ent_text.split()) == 1 and len(ent_text) <= 4:
+                confidence -= 0.06
+
+            existing = extracted.get(key)
+            if existing is None or confidence > existing.confidence:
+                extracted[key] = ClinicalEntity(
+                    text=ent_text,
+                    entity_type=entity_type,
+                    confidence=max(0.5, min(confidence, 0.95)),
+                    source=f"{source}_ner",
+                    turn_id=turn_id,
+                    normalized=normalized,
+                )
+
+        return list(extracted.values())
+
+    def _extract_from_text_rules(
+        self,
+        text: str,
+        turn_id: int,
+        source: str = "answer",
+    ) -> List[ClinicalEntity]:
+        """Deterministic extraction for high-value entities to stabilize session state."""
+        entities: Dict[tuple, ClinicalEntity] = {}
+        text_lower = text.lower()
+
+        def add_entity(normalized_text: str, entity_type: EntityType, confidence: float):
+            key = (normalized_text.lower(), entity_type)
+            if key in entities:
+                entities[key].confidence = max(entities[key].confidence, confidence)
+                return
+            entities[key] = ClinicalEntity(
+                text=normalized_text,
+                entity_type=entity_type,
+                confidence=confidence,
+                source=source,
+                turn_id=turn_id,
+                normalized=self._normalize_entity(normalized_text, entity_type),
+            )
+
+        # Symptoms / findings / medications / procedures from explicit patterns
+        for normalized, patterns in self.SYMPTOM_PATTERNS.items():
+            if any(re.search(pat, text_lower, re.I) for pat in patterns):
+                add_entity(normalized, EntityType.SYMPTOM, 0.8)
+
+        for normalized, patterns in self.FINDING_PATTERNS.items():
+            if any(re.search(pat, text_lower, re.I) for pat in patterns):
+                add_entity(normalized, EntityType.FINDING, 0.8)
+
+        # Bridge selected findings into symptom-like memory terms for patient-described signs.
+        for finding_term, symptom_term in self.FINDING_TO_SYMPTOM_BRIDGE.items():
+            if finding_term in text_lower:
+                add_entity(symptom_term, EntityType.SYMPTOM, 0.76)
+
+        for normalized, patterns in self.MEDICATION_PATTERNS.items():
+            if any(re.search(pat, text_lower, re.I) for pat in patterns):
+                add_entity(normalized, EntityType.MEDICATION, 0.82)
+
+        for normalized, patterns in self.PROCEDURE_PATTERNS.items():
+            if any(re.search(pat, text_lower, re.I) for pat in patterns):
+                add_entity(normalized, EntityType.PROCEDURE, 0.82)
+
+        # Conditions/anatomy/imaging from templates
+        for keyword in self._entity_templates["condition"]:
+            if re.search(rf"\b{re.escape(keyword.lower())}\b", text_lower):
+                add_entity(keyword, EntityType.CONDITION, 0.75)
+
+        for normalized, patterns in self.ANATOMY_PATTERNS.items():
+            if any(re.search(pat, text_lower, re.I) for pat in patterns):
+                add_entity(normalized, EntityType.ANATOMY, 0.74)
+
+        for keyword in self._entity_templates["anatomy"]:
+            if re.search(rf"\b{re.escape(keyword.lower())}\b", text_lower):
+                add_entity(keyword, EntityType.ANATOMY, 0.72)
+
+        for keyword in self._entity_templates["imaging"]:
+            if re.search(rf"\b{re.escape(keyword.lower())}\b", text_lower):
+                add_entity(keyword, EntityType.IMAGING, 0.8)
+
+        return list(entities.values())
+
+    def _inject_symptom_bridges(self, entities: List[ClinicalEntity], turn_id: int) -> List[ClinicalEntity]:
+        """Add symptom-side aliases for key visible findings (e.g., Roth spots)."""
+        merged = list(entities)
+        existing_keys = {
+            ((e.normalized or e.text.lower().strip()), e.entity_type)
+            for e in merged
+        }
+
+        for entity in entities:
+            if entity.entity_type != EntityType.FINDING:
+                continue
+
+            normalized = (entity.normalized or entity.text).lower().strip()
+            symptom_alias = None
+
+            for finding_key, symptom_value in self.FINDING_TO_SYMPTOM_BRIDGE.items():
+                if finding_key in normalized:
+                    symptom_alias = symptom_value
+                    break
+
+            if not symptom_alias:
+                continue
+
+            symptom_norm = self._normalize_entity(symptom_alias, EntityType.SYMPTOM)
+            key = (symptom_norm, EntityType.SYMPTOM)
+            if key in existing_keys:
+                continue
+
+            merged.append(
+                ClinicalEntity(
+                    text=symptom_alias,
+                    entity_type=EntityType.SYMPTOM,
+                    confidence=max(0.78, min(0.88, entity.confidence * 0.95)),
+                    source=f"{entity.source}_bridge",
+                    turn_id=turn_id,
+                    normalized=symptom_norm,
+                    region=entity.region,
+                    priority=entity.priority,
+                )
+            )
+            existing_keys.add(key)
+
+        return merged
     
     def _tag_locality_and_priority(self, entities: List[ClinicalEntity]) -> List[ClinicalEntity]:
         """Tag entities with anatomical region and clinical priority."""
@@ -300,11 +873,15 @@ class ClinicalEntityExtractor:
         entities = []
         
         # Parse modality
-        modality_match = re.search(r'Detected Image Type:\s*(\w+)', visual_findings, re.I)
+        modality_match = re.search(r'Detected Image Type:\s*([^\n\r]+)', visual_findings, re.I)
         detected_modality = None
         if modality_match:
-            modality_key = modality_match.group(1).upper()
-            normalized_modality = self.EYECLIP_MODALITY_MAP.get(modality_key, modality_key.lower())
+            modality_label = modality_match.group(1).strip()
+            normalized_modality = modality_label.lower()
+            for key, mapped in self.EYECLIP_MODALITY_MAP.items():
+                if key.lower() in modality_label.lower() or mapped.lower() in modality_label.lower():
+                    normalized_modality = mapped
+                    break
             detected_modality = normalized_modality
             entities.append(ClinicalEntity(
                 text=normalized_modality,
@@ -316,7 +893,7 @@ class ClinicalEntityExtractor:
         
         # Parse conditions/findings with confidence scores
         # Pattern: "● Probable: drusen (69.0%)" or "● Possible: hemorrhage (31.2%)"
-        finding_pattern = r'●\s*(Probable|Possible|Detected):\s*([^(]+?)\s*\(([\d.]+)%\)'
+        finding_pattern = r'[●○\-*]\s*(Probable|Possible|Detected):\s*([^(\n]+?)\s*\(([\d.]+)%\)'
         for match in re.finditer(finding_pattern, visual_findings, re.I):
             confidence_label = match.group(1).lower()
             condition_text = match.group(2).strip().lower()
@@ -377,7 +954,8 @@ class ClinicalEntityExtractor:
         self, 
         text: str, 
         turn_id: int,
-        visual_findings: Optional[str] = None
+        visual_findings: Optional[str] = None,
+        source: str = "answer",
     ) -> List[ClinicalEntity]:
         """Extract entities from text using MedGemma with structured output."""
         
@@ -404,6 +982,7 @@ class ClinicalEntityExtractor:
             "- symptom: Patient complaints (blurry vision, floaters, pain, etc.)\n"
             "- imaging: Tests/modalities (OCT, fundus photo, FFA, etc.)\n"
             "- medication: Drugs/treatments (anti-VEGF, steroids, etc.)\n\n"
+            "- procedure: Procedures/interventions (intravitreal injection, vitrectomy, laser, surgery)\n\n"
             "RULES:\n"
             "1. Output ONLY a JSON array. No explanations, no markdown.\n"
             "2. Each entity must have: text, entity_type, confidence (0.0-1.0)\n"
@@ -442,10 +1021,11 @@ class ClinicalEntityExtractor:
             # Parse JSON using regex to find the array block
             response = response.strip()
             
-            # Find the JSON array using regex, spanning multiple lines
-            match = re.search(r'\[(.*?)\]', response, re.DOTALL)
-            if match:
-                json_str = f"[{match.group(1)}]"
+            # Find JSON payload robustly: prefer first '[' to last ']'.
+            start = response.find("[")
+            end = response.rfind("]")
+            if start != -1 and end != -1 and end > start:
+                json_str = response[start:end + 1]
             else:
                 # If no clear array, maybe it output a single object
                 match = re.search(r'\{.*?\}', response, re.DOTALL)
@@ -470,6 +1050,10 @@ class ClinicalEntityExtractor:
             # Convert to ClinicalEntity objects
             entities = []
             for item in entities_data:
+                if not isinstance(item, dict):
+                    continue
+                if "text" not in item:
+                    continue
                 if item.get("confidence", 0) < 0.5:
                     continue
                 
@@ -496,7 +1080,7 @@ class ClinicalEntityExtractor:
                     text=item["text"],
                     entity_type=entity_type,
                     confidence=item["confidence"],
-                    source="answer",
+                    source=source,
                     turn_id=turn_id,
                     normalized=self._normalize_entity(item["text"], entity_type),
                 )

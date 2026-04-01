@@ -43,9 +43,10 @@ class RetinaRetriever:
 
     def _load_retriever(self):
         print(f"Loading MedEmbed ({MEDEMBED_MODEL}) + ChromaDB dense retriever...")
+        embed_device = "cuda:0" if torch.cuda.is_available() else "cpu"
         med_embeddings = HuggingFaceEmbeddings(
             model_name=MEDEMBED_MODEL,
-            model_kwargs={"device": "cuda:0"},
+            model_kwargs={"device": embed_device},
             encode_kwargs={"batch_size": 64, "normalize_embeddings": True},
         )
         dense_vectorstore = Chroma(
@@ -75,8 +76,12 @@ class RetinaRetriever:
         """Score each (query, document) pair with MedCPT Cross-Encoder."""
         if not docs:
             return docs
+        if top_k <= 0:
+            return []
 
-        pairs = [[query, doc.page_content[:512]] for doc in docs]
+        # Let the tokenizer handle truncation in token space; character clipping
+        # can discard relevant terms and destabilize ranking.
+        pairs = [[query, doc.page_content] for doc in docs]
 
         with torch.no_grad():
             encoded = self.reranker_tokenizer(
@@ -86,16 +91,34 @@ class RetinaRetriever:
                 return_tensors="pt",
                 max_length=512,
             ).to(self.reranker_device)
-            scores = self.reranker_model(**encoded).logits.squeeze(dim=-1)
-            # Ensure scores is 1D even for single document
-            if scores.dim() == 0:
-                scores = scores.unsqueeze(0)
-            scores = scores.cpu().tolist()
+            logits = self.reranker_model(**encoded).logits
 
-        scored_docs = sorted(
-            zip(scores, docs), key=lambda x: x[0], reverse=True
-        )
-        return [doc for _, doc in scored_docs[:top_k]]
+            # MedCPT checkpoints may emit either:
+            # - [batch] / [batch, 1] regression-style scores
+            # - [batch, 2] (or more) classification logits
+            # Always collapse to one scalar relevance value per document.
+            if logits.dim() == 1:
+                relevance = logits
+            elif logits.size(-1) == 1:
+                relevance = logits.squeeze(dim=-1)
+            else:
+                # For classification heads, use probability of the final label
+                # as relevance (for binary heads, this is the positive class).
+                relevance = torch.softmax(logits, dim=-1)[..., -1]
+
+            if relevance.dim() == 0:
+                relevance = relevance.unsqueeze(0)
+            scores = relevance.cpu().tolist()
+
+        scored_docs = sorted(zip(scores, docs), key=lambda x: x[0], reverse=True)
+
+        ranked_docs: list[Document] = []
+        for rank, (score, doc) in enumerate(scored_docs[:top_k], start=1):
+            doc.metadata["rerank_score"] = float(score)
+            doc.metadata["rerank_rank"] = rank
+            ranked_docs.append(doc)
+
+        return ranked_docs
 
     def search(self, query: str, k: int = 5, verbose: bool = True) -> list[Document]:
         """
