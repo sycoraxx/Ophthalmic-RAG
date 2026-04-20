@@ -142,44 +142,46 @@ This project requires specialized model weights. Place them in the `models/check
 
 ### 4. Knowledge Base Ingestion
 1. **Fetch External Ophthalmic Resources (recommended, high coverage):**
-  ```bash
-  # Uses script defaults; control scope with explicit --max-* flags if needed
-  python scripts/fetch_external_resources.py
-  ```
+    ```bash
+    # Uses script defaults; control scope with explicit --max-* flags if needed
+    python scripts/fetch_external_resources.py
+    ```
 
-  Optional custom run:
-  ```bash
-  python scripts/fetch_external_resources.py \
-    --max-eye-lit 15000 \
-    --max-medrag 10000 \
-    --max-aao 80 \
-    --max-statpearls 450 \
-    --max-merck 120 \
-    --aao-pdf-pages 0
-  ```
+    Optional custom run:
+    ```bash
+    python scripts/fetch_external_resources.py \
+      --max-eye-lit 15000 \
+      --max-medrag 10000 \
+      --max-aao 80 \
+      --max-statpearls 450 \
+      --max-merck 120 \
+      --aao-pdf-pages 0
+    ```
 
 2. **Fetch PubMed/EuropePMC/Semantic Scholar/MedlinePlus Articles** (optional — pre-built data included):
-   ```bash
-   python scripts/fetch_articles.py                   # ~6000 articles
-   python scripts/fetch_articles.py --max-per-query 10 # quick test
-   ```
+    ```bash
+    python scripts/fetch_articles.py                   # ~6000 articles
+    python scripts/fetch_articles.py --max-per-query 10 # quick test
+    ```
+
 3. **Chunk & Ingest**:
-   ```bash
-  # Includes content-hash deduplication before persistence
-   python scripts/chunk_data.py
-   python scripts/ingest_db.py
-   ```
+    ```bash
+    # Includes content-hash deduplication before persistence
+    python scripts/chunk_data.py
+    python scripts/ingest_db.py
+    ```
+
 4. **Visual Embedding** (required for zero-shot vision features):
-   ```bash
-   python scripts/embed_labels.py
-   ```
+    ```bash
+    python scripts/embed_labels.py
+    ```
 
 5. **Optional Corpus Sanitization and Parser Regression Checks**:
-  ```bash
-  python scripts/sanitize_external_corpus.py --dry-run
-  python scripts/sanitize_external_corpus.py
-  python scripts/parser_regression_check.py
-  ```
+    ```bash
+    python scripts/sanitize_external_corpus.py --dry-run
+    python scripts/sanitize_external_corpus.py
+    python scripts/parser_regression_check.py
+    ```
 
 ### 5. Run the Application
 ```bash
