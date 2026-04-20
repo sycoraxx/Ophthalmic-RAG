@@ -96,9 +96,17 @@ class LightweightEvaluator:
         """
         Verify if a list of clinical claims are entailed by the context text.
         
+        Claims are first sentence-tokenised so the NLI model receives atomic
+        statements rather than full paragraphs (which it cannot entail reliably).
+
         Uses a sliding-window approach to handle contexts that exceed
         DeBERTa-v3-small's 512-token limit. Each claim is tested against
         all context windows; a claim is entailed if ANY window entails it.
+
+        Verdict tiers:
+          PASS    — all claims entailed by at least one context window
+          PARTIAL — some claims neutral (unverified) but none contradicted
+          FAIL    — any claim contradicted, OR >66% of claims unverified
         """
         if not claims:
             return {"verdict": "PASS", "reasoning": "No claims provided to verify.", "unsupported_claims": []}
@@ -108,13 +116,40 @@ class LightweightEvaluator:
 
         nli_pipe = self._load_nli()
         tokenizer = nli_pipe.tokenizer
+
+        # ── Sentence-tokenise claims ────────────────────────────────────────
+        # The generator produces paragraph-length lines. DeBERTa-v3-small is
+        # trained on sentence-pair NLI; it cannot reliably entail full
+        # paragraphs. Split each line into individual sentences first.
+        import re as _re
+        atomic_claims: List[str] = []
+        seen_claim_text: set = set()
+        for claim in claims:
+            # Split on sentence boundaries: ., !, ? followed by whitespace or end
+            sentences = _re.split(r'(?<=[.!?])\s+', claim.strip())
+            for sent in sentences:
+                sent = sent.strip()
+                # Skip bullets/list markers passed as claims, very short fragments,
+                # and exact duplicates.
+                if len(sent) < 20:
+                    continue
+                if sent.lower() in seen_claim_text:
+                    continue
+                # Skip pure bullet items ("- item", "* item") with no verb
+                if _re.match(r'^[-•*]\s*\w', sent) and len(sent.split()) <= 6:
+                    continue
+                seen_claim_text.add(sent.lower())
+                atomic_claims.append(sent)
+
+        if not atomic_claims:
+            return {"verdict": "PASS", "reasoning": "No verifiable atomic claims extracted.", "unsupported_claims": []}
         
         # ── Chunk context into overlapping windows ──────────────────────────
-        # Reserve ~112 tokens for the claim + special tokens; use rest for context
+        # Reserve ~256 tokens for the claim + special tokens; use rest for context
         MAX_SEQ = 512
-        CLAIM_BUDGET = 112  # generous ceiling for a single-sentence claim
-        CTX_BUDGET = MAX_SEQ - CLAIM_BUDGET  # ~400 tokens for context per window
-        OVERLAP = 50  # token overlap between consecutive windows
+        CLAIM_BUDGET = 128  # single sentences are short; give more room to context
+        CTX_BUDGET = MAX_SEQ - CLAIM_BUDGET  # ~384 tokens for context per window
+        OVERLAP = 64  # token overlap between consecutive windows
         
         ctx_ids = tokenizer.encode(context, add_special_tokens=False, verbose=False)
         
@@ -134,9 +169,13 @@ class LightweightEvaluator:
                 start += CTX_BUDGET - OVERLAP  # slide forward with overlap
 
         # ── Check each claim against all windows ─────────────────────────────
-        unsupported = []
+        # Three categories per claim: entailed, contradicted, neutral (unverified)
+        entailed_claims = []
+        contradicted_claims = []
+        unverified_claims = []
+        ENTAILMENT_THRESHOLD = 0.45  # minimum score to count as entailed
         
-        for claim in claims:
+        for claim in atomic_claims:
             # Build NLI pairs for every window
             pairs = [{"text": window, "text_pair": claim} for window in context_windows]
             
@@ -146,44 +185,88 @@ class LightweightEvaluator:
                 print(f"[LightweightEvaluator] NLI error for claim: {e}")
                 continue
             
-            # Less strict aggregation: claim is grounded if ANY window entails it
-            # OR if ANY window considers it a high-confidence 'neutral' (harmless conversational text).
-            # We ONLY flag if the claim is explicitly contradicted everywhere.
-            is_supported = False
+            claim_status = "neutral"  # default
+            best_entailment_score = 0.0
+            best_contradiction_score = 0.0
             
             for res_list in all_results:
-                top_label = res_list[0]["label"].lower()
-                top_score = res_list[0]["score"]
+                for pred in res_list:
+                    label = pred["label"].lower()
+                    score = pred["score"]
+                    
+                    if "entailment" in label and score > best_entailment_score:
+                        best_entailment_score = score
+                    if "contradiction" in label and score > best_contradiction_score:
+                        best_contradiction_score = score
                 
-                if "entailment" in top_label:
-                    is_supported = True
-                    break
-                elif "neutral" in top_label and top_score > 0.6:
-                    # High-confidence neutral -> not explicitly contradicting the text.
-                    # Acceptable for generative LLMs writing patient-facing instructions.
-                    is_supported = True
-                    break
+                top_label = res_list[0]["label"].lower()
+                # Require a meaningful entailment score, not just "top label"
+                if "entailment" in top_label and best_entailment_score >= ENTAILMENT_THRESHOLD:
+                    claim_status = "entailed"
+                    break  # One window entailing is enough
             
-            if not is_supported:
-                # Not supported anywhere — find the dominant error label for logging
-                top_pred = all_results[0][0]
-                unsupported.append({
-                    "claim": claim,
-                    "nli_label": top_pred["label"],
-                    "score": round(top_pred["score"], 3)
-                })
-
-        if unsupported:
-            return {
-                "verdict": "FAIL",
-                "reasoning": f"Found {len(unsupported)} ungrounded claims ({len(context_windows)} context windows checked).",
-                "unsupported_claims": unsupported
+            # If not entailed by any window, check if any window contradicts it
+            if claim_status != "entailed" and best_contradiction_score > 0.55:
+                claim_status = "contradicted"
+            
+            claim_record = {
+                "claim": claim,
+                "status": claim_status,
+                "entailment_score": round(best_entailment_score, 3),
+                "contradiction_score": round(best_contradiction_score, 3),
             }
             
+            if claim_status == "entailed":
+                entailed_claims.append(claim_record)
+            elif claim_status == "contradicted":
+                contradicted_claims.append(claim_record)
+            else:
+                unverified_claims.append(claim_record)
+
+        # ── Determine verdict ────────────────────────────────────────────────
+        total_claims = len(entailed_claims) + len(contradicted_claims) + len(unverified_claims)
+        
+        if contradicted_claims:
+            # Any contradiction → FAIL
+            verdict = "FAIL"
+            reasoning = (
+                f"{len(contradicted_claims)} claim(s) contradicted by sources, "
+                f"{len(unverified_claims)} unverified, {len(entailed_claims)} entailed "
+                f"({len(context_windows)} context windows, {len(atomic_claims)} atomic claims checked)."
+            )
+        elif unverified_claims:
+            # No contradictions, but some claims not in sources
+            unverified_ratio = len(unverified_claims) / max(total_claims, 1)
+            if unverified_ratio > 0.66:
+                # Super-majority of claims not supported → FAIL
+                verdict = "FAIL"
+                reasoning = (
+                    f"Super-majority of claims ({len(unverified_claims)}/{total_claims}) not supported by sources "
+                    f"({len(context_windows)} context windows, {len(atomic_claims)} atomic claims checked)."
+                )
+            else:
+                # Some unverified but most are entailed → PARTIAL
+                verdict = "PARTIAL"
+                reasoning = (
+                    f"{len(unverified_claims)} claim(s) unverified (not in sources), "
+                    f"{len(entailed_claims)} entailed "
+                    f"({len(context_windows)} context windows, {len(atomic_claims)} atomic claims checked)."
+                )
+        else:
+            # All claims entailed
+            verdict = "PASS"
+            reasoning = f"All {len(entailed_claims)} atomic claims entailed ({len(context_windows)} context windows checked)."
+
+        # Build unsupported list (contradicted + unverified) for downstream use
+        unsupported = contradicted_claims + unverified_claims
+
         return {
-            "verdict": "PASS",
-            "reasoning": f"All claims entailed ({len(context_windows)} context windows checked).",
-            "unsupported_claims": []
+            "verdict": verdict,
+            "reasoning": reasoning,
+            "unsupported_claims": unsupported,
+            "entailed_count": len(entailed_claims),
+            "contradicted_count": len(contradicted_claims),
+            "unverified_count": len(unverified_claims),
         }
 
     def clear_memory(self):

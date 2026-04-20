@@ -23,6 +23,7 @@ from PIL import Image as PILImage
 # Import session state components
 from src.state.clinical_session_state import ClinicalSessionState, ClinicalEntity, EntityType
 from src.state.clinical_entity_extractor import ClinicalEntityExtractor
+from src.anatomy import get_eye_anatomy_graph
 
 MEDGEMMA_MODEL = "./models/checkpoints/medgemma-1.5-4b-it"
 
@@ -108,6 +109,9 @@ class MedGemmaGenerator:
             device_map="auto",
         )
         self.medgemma.eval()
+
+        # Shared deterministic anatomy graph for parsing/retrieval/generation guardrails.
+        self.anatomy_graph = get_eye_anatomy_graph()
         
         # Initialize entity extractor with EyeCLIP integration
         self.entity_extractor = ClinicalEntityExtractor(self)
@@ -216,16 +220,31 @@ class MedGemmaGenerator:
         out = re.sub(r'^\s*[-*]\s*.*?:\s*Yes\s*$', '', out, flags=re.MULTILINE)
         out = out.strip()
         
-        # 4. Emergency Fallback: If stripping made it empty, the model might have 
-        # only output the thought/checklist. Return at least something or the original
+        # 4. Emergency Fallback: If stripping made it empty, the model only output
+        # the thought/checklist (no closing <unused95>). Attempt a last-resort strip
+        # of the raw output by looking for the first blank line after the thought
+        # header, then returning whatever follows.
         if not out:
-            # If it's empty, maybe the model didn't generate any answer yet. 
-            # We'll return the raw_out but without the thought prefix if possible.
-            out = re.sub(r'(?i)^thought:?\s*', '', raw_out).strip()
-            if not out:
-                return "I'm sorry, I couldn't generate a clear response for this query. Could you please rephrase?"
+            # Try to recover the answer portion from raw_out by finding where the
+            # thought section ends. The actual answer usually begins after the first
+            # double-newline following the thought opening.
+            stripped = re.sub(r'(?si)^.*?<unused94>.*?\n\n', '', raw_out, count=1).strip()
+            if not stripped:
+                # If still empty or raw_out had no double-newline, try after first \n
+                stripped = re.sub(r'(?si)^.*?<unused94>[^\n]*\n', '', raw_out, count=1).strip()
+            if not stripped:
+                # Absolute fallback: strip known thought prefixes
+                stripped = re.sub(r'(?i)^thought:?\s*', '', raw_out).strip()
+            out = stripped or ""
                     
         return out
+
+    def _get_anatomy_graph(self):
+        graph = getattr(self, "anatomy_graph", None)
+        if graph is None:
+            graph = get_eye_anatomy_graph()
+            self.anatomy_graph = graph
+        return graph
 
     # ── Anatomy Detection Helper ─────────────────────────────────────────────
     ANATOMY_KEYWORDS = {
@@ -249,6 +268,17 @@ class MedGemmaGenerator:
         """Detect which anatomical structures are mentioned in text."""
         text_lower = text.lower()
         detected = set()
+
+        graph = self._get_anatomy_graph()
+        graph_detected = graph.detect_structures(text_lower)
+        mapping = {
+            "optic disc": "optic_nerve",
+            "optic nerve": "optic_nerve",
+            "anterior chamber": "anterior_chamber",
+        }
+        for structure in graph_detected:
+            detected.add(mapping.get(structure.replace("_", " "), structure))
+
         for anatomy, keywords in self.ANATOMY_KEYWORDS.items():
             if any(kw.lower() in text_lower for kw in keywords):
                 detected.add(anatomy)
@@ -274,6 +304,16 @@ class MedGemmaGenerator:
             seeded = (
                 "cornea corneal infiltrate corneal ulcer infectious keratitis microbial keratitis "
                 "red eye tearing pain photophobia urgent ophthalmology"
+            )
+            return self.apply_symptom_sign_mapping_to_query(raw_query, seeded, max_terms=15)
+
+        # Non-inflammatory surface spot (e.g. "white spot on black part of eye" without
+        # redness/pain) → bias to anterior-segment differentials (leukocoria, cataract,
+        # corneal opacity) and suppress posterior-segment distractors.
+        if mapping.get("has_surface_spot") and not mapping["high_risk_surface"]:
+            seeded = (
+                "leukocoria white pupillary reflex cataract corneal opacity "
+                "corneal scar anterior segment pupil abnormality"
             )
             return self.apply_symptom_sign_mapping_to_query(raw_query, seeded, max_terms=15)
 
@@ -316,7 +356,23 @@ class MedGemmaGenerator:
                 short_findings = visual_findings.split("----------------------------------------")[0].strip()
                 eyeclip_hint = f" [Image Findings: {short_findings}]"
 
-        user_text = f"Patient:{eyeclip_hint} {raw_query}"
+        # Build Anatomy Graph Hint
+        anatomy_hint = ""
+        graph = self._get_anatomy_graph()
+        anatomy_profile = graph.infer_query_profile(raw_query)
+        lay_mentions = anatomy_profile.get("lay_mentions", {})
+        
+        if lay_mentions:
+            hint_parts = []
+            for phrase, targets in lay_mentions.items():
+                hint_parts.append(f"'{phrase}' -> {', '.join(targets)}")
+            anatomy_hint += f" [Anatomy Translation: {'; '.join(hint_parts)}]"
+            
+        facts = graph.grounding_facts_for_query(raw_query, max_facts=2)
+        if facts:
+            anatomy_hint += f" [Anatomy Facts: {' '.join(facts)}]"
+
+        user_text = f"Patient:{eyeclip_hint}{anatomy_hint} {raw_query}"
         user_content = self._build_multimodal_content(user_text, image_path)
 
         messages = [
@@ -428,12 +484,23 @@ class MedGemmaGenerator:
     def _surface_sign_profile(self, text: str) -> Dict[str, bool]:
         """Classify whether language suggests a visible anterior-segment emergency."""
         q = (text or "").lower()
+        anatomy_profile = self._get_anatomy_graph().infer_query_profile(q)
+
         has_spot = any(re.search(p, q) for p in SURFACE_SPOT_PATTERNS)
-        has_surface_location = any(re.search(p, q) for p in SURFACE_LOCATION_PATTERNS)
+        has_surface_location = (
+            any(re.search(p, q) for p in SURFACE_LOCATION_PATTERNS)
+            or anatomy_profile.get("has_surface_location", False)
+        )
         inflammatory_hits = sum(bool(re.search(p, q)) for p in INFLAMMATORY_FEATURE_PATTERNS)
         has_inflammation = inflammatory_hits >= 1
-        has_fundus_context = any(re.search(p, q) for p in FUNDUS_CONTEXT_PATTERNS)
-        has_eye_reference = bool(re.search(r"\b(eye|cornea|iris|conjunctiva)\b", q))
+        has_fundus_context = (
+            any(re.search(p, q) for p in FUNDUS_CONTEXT_PATTERNS)
+            or anatomy_profile.get("has_fundus_context", False)
+        )
+        has_eye_reference = (
+            bool(re.search(r"\b(eye|cornea|iris|conjunctiva|sclera|pupil)\b", q))
+            or anatomy_profile.get("has_eye_reference", False)
+        )
 
         contact_lens_surface_risk = bool(re.search(r"contact\s+lens|lens\s+wearer", q)) and has_inflammation
 
@@ -446,13 +513,24 @@ class MedGemmaGenerator:
             or (contact_lens_surface_risk and has_spot)
         ) and not has_fundus_context
 
+        # NEW: Surface spot without inflammation still indicates anterior-segment
+        # pathology (leukocoria, corneal opacity, cataract). Must NOT be mapped
+        # to posterior-segment findings like cherry-red spot.
+        has_surface_spot = (
+            has_spot
+            and (has_surface_location or has_eye_reference)
+            and not has_fundus_context
+        )
+
         return {
             "has_spot": has_spot,
             "has_surface_location": has_surface_location,
             "has_inflammation": has_inflammation,
             "has_fundus_context": has_fundus_context,
             "has_eye_reference": has_eye_reference,
+            "surface_targets": anatomy_profile.get("surface_targets", []),
             "high_risk_surface": high_risk_surface,
+            "has_surface_spot": has_surface_spot,
         }
 
     def apply_symptom_sign_mapping_to_query(
@@ -477,9 +555,16 @@ class MedGemmaGenerator:
                 "red eye tearing pain photophobia surface lesion urgent ophthalmology"
             )
             merged = f"{seeded} {merged}"
+        elif mapping.get("has_surface_spot"):
+            # Non-inflammatory surface spot → anterior-segment differentials
+            seeded = (
+                "leukocoria white pupillary reflex cataract corneal opacity "
+                "corneal scar anterior segment pupil abnormality"
+            )
+            merged = f"{seeded} {merged}"
 
         banned_tokens = None
-        if mapping["high_risk_surface"] and not mapping["has_fundus_context"]:
+        if (mapping["high_risk_surface"] or mapping.get("has_surface_spot")) and not mapping["has_fundus_context"]:
             banned_tokens = POSTERIOR_SEGMENT_MISLEADING_TOKENS
 
         normalized = self.normalize_retrieval_query(
@@ -525,6 +610,22 @@ class MedGemmaGenerator:
             hist_to_use = [q for q in recent_history if q != current_query]
             if hist_to_use:
                 history_str = f"\nPrior Questions: {' → '.join(hist_to_use)}"
+
+        # Build Anatomy Graph Hint
+        anatomy_hint = ""
+        graph = self._get_anatomy_graph()
+        anatomy_profile = graph.infer_query_profile(current_query)
+        lay_mentions = anatomy_profile.get("lay_mentions", {})
+        
+        if lay_mentions:
+            hint_parts = []
+            for phrase, targets in lay_mentions.items():
+                hint_parts.append(f"'{phrase}' -> {', '.join(targets)}")
+            anatomy_hint += f"\nAnatomy Translation: {'; '.join(hint_parts)}"
+            
+        facts = graph.grounding_facts_for_query(current_query, max_facts=2)
+        if facts:
+            anatomy_hint += f"\nAnatomy Facts: {' '.join(facts)}"
         
         system_prompt = (
             "You are a clinical query rewriter for ophthalmology RAG.\n"
@@ -553,7 +654,7 @@ class MedGemmaGenerator:
             "Output: cataract surgery options IOL timing recovery"
         )
         
-        user_text = f"Context:{state_context}{eyeclip_hint}{history_str}\nPatient: {current_query}"
+        user_text = f"Context:{state_context}{eyeclip_hint}{anatomy_hint}{history_str}\nPatient: {current_query}"
         user_content = self._build_multimodal_content(user_text, image_path)
         
         messages = [
@@ -579,13 +680,18 @@ class MedGemmaGenerator:
 
     # ── Context Formatting ───────────────────────────────────────────────────
     def build_context_block(self, context_docs: list[Document]) -> str:
-        """Format retrieved documents into a context block."""
+        """Format retrieved documents into a context block.
+        
+        Uses 2000 chars per source (safe within MedGemma's 8K context).
+        With k=3 sources: ~6000 chars ≈ 1500 tokens context, well under the limit.
+        """
         parts = []
         for i, doc in enumerate(context_docs, 1):
             src = doc.metadata.get("source", "Unknown")
             path = doc.metadata.get("section_path", "General")
-            # Trim content to save tokens
-            content = doc.page_content[:800].strip()
+            # Use 2000 chars to preserve treatment/mechanism details that
+            # were being lost at 800 chars, causing confabulation.
+            content = doc.page_content[:2000].strip()
             parts.append(f"[Source {i}: {src} — {path}]\n{content}")
         return "\n\n---\n\n".join(parts)
 
@@ -665,6 +771,63 @@ class MedGemmaGenerator:
                 print(f"[MedGemma] ⚠ Failed to load image {image_path}: {e}")
         return text
 
+    def _apply_anatomy_guardrails_to_answer(
+        self,
+        *,
+        raw_query: str,
+        draft_answer: str,
+        context_block: str,
+        anatomy_facts: List[str],
+    ) -> str:
+        """Rewrite answer once if deterministic anatomy checks detect contradictions."""
+        graph = self._get_anatomy_graph()
+        contradictions = graph.find_anatomy_contradictions(draft_answer)
+        if not contradictions:
+            return draft_answer
+
+        facts_block = "\n".join(f"- {fact}" for fact in anatomy_facts[:8])
+        contradiction_block = "\n".join(f"- {issue}" for issue in contradictions)
+
+        system_prompt = (
+            "You are a clinical safety editor for ophthalmology answers.\n"
+            "Revise the draft answer to remove anatomy contradictions while preserving tone and useful advice.\n"
+            "Do not invent new diagnoses and do not contradict the verified anatomy facts.\n"
+            "Output ONLY the corrected final answer."
+        )
+        user_prompt = (
+            f"PATIENT QUESTION:\n{raw_query}\n\n"
+            f"VERIFIED ANATOMY FACTS:\n{facts_block}\n\n"
+            f"DETECTED CONTRADICTIONS:\n{contradiction_block}\n\n"
+            f"SOURCE CONTEXT:\n{context_block}\n\n"
+            f"DRAFT ANSWER:\n{draft_answer}"
+        )
+
+        corrected = self._generate(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_new_tokens=512,
+            temperature=0.0,
+            do_sample=False,
+            repetition_penalty=1.05,
+            skip_thought=True,
+        ).strip()
+
+        if not corrected:
+            return draft_answer
+
+        if graph.find_anatomy_contradictions(corrected):
+            # Conservative fail-safe: emit minimal guidance.
+            # We avoid dumping raw facts here as it can look like a technical error to the patient.
+            return (
+                "I detected a potential clinical inconsistency in my generated response regarding eye anatomy. "
+                "To ensure your safety, please seek an in-person eye examination for an accurate diagnosis, "
+                "especially if you are experiencing pain, persistent redness, or any sudden changes in your vision."
+            )
+
+        return corrected
+
     # ── Answer Generation (Multimodal + Session State) ───────────────────────
     def generate_answer(
         self,
@@ -693,6 +856,14 @@ class MedGemmaGenerator:
             state_context = session_state.to_generation_context(include_provisional=True)
             if state_context:
                 state_block = f"\nCLINICAL CONTEXT FROM PRIOR CONVERSATION:\n{state_context}\n\n"
+
+        anatomy_graph = self._get_anatomy_graph()
+        anatomy_facts = anatomy_graph.grounding_facts_for_query(raw_query, max_facts=4)
+        anatomy_facts_block = ""
+        if anatomy_facts:
+            anatomy_facts_block = "ANATOMICAL CONTEXT HINTS:\n" + "\n".join(
+                f"- {fact}" for fact in anatomy_facts
+            ) + "\n\n"
         
         # Check anatomical consistency
         query_anatomy = self._detect_anatomy(raw_query)
@@ -717,7 +888,13 @@ class MedGemmaGenerator:
             "3. Structure: direct answer → possible causes → safety advice and when to seek care. "
             "Include home care ONLY when presentation appears mild and non-urgent.\n"
             "4. Cite sources as [Source N] ONLY if fact appears in that source. NEVER invent citations.\n"
-            "5. If reference texts lack information, say so. DO NOT GUESS.\n"
+            "5. CRITICAL GROUNDING RULE: Every specific medical claim (diagnosis, treatment, "
+            "mechanism of action, statistic, anatomical fact) MUST be directly traceable to the "
+            "MEDICAL REFERENCE TEXTS provided below. If the references do NOT contain the specific "
+            "information needed to answer the question, you MUST say: "
+            "'The available medical references don't specifically address this point. "
+            "Please consult your ophthalmologist for a definitive answer.' "
+            "Do NOT fill in from general medical knowledge. Do NOT guess.\n"
             "6. Keep answer concise (150-250 words).\n"
             "7. If CLINICAL CONTEXT is provided, personalize advice accordingly.\n"
             "8. Maintain continuity with prior conversation topics.\n"
@@ -768,7 +945,7 @@ class MedGemmaGenerator:
         if correction_context:
             system_prompt = (
                 "You are a friendly eye health assistant.\n\n"
-                f"{patient_block}{base_rules}\n"
+                f"{patient_block}{anatomy_facts_block}{base_rules}\n"
                 "CRITICAL CORRECTION: Previous answer contained unsupported claims:\n"
                 f"{correction_context}\n"
                 "DO NOT repeat these. ONLY state facts from source texts.\n"
@@ -776,7 +953,7 @@ class MedGemmaGenerator:
         else:
             system_prompt = (
                 "You are a friendly eye health assistant.\n\n"
-                f"{patient_block}{base_rules}"
+                f"{patient_block}{anatomy_facts_block}{base_rules}"
             )
         
         vision_block = ""
@@ -809,11 +986,58 @@ class MedGemmaGenerator:
             repetition_penalty=1.15,  # Prevent looping in thinking trace
         )
         
-        # ✅ AFTER — only kill truly empty/broken outputs
-        if "<unused94>thought" in answer:
-            return "I'm sorry, but this question is outside my ophthalmology knowledge base."
+        # Guard: if _generate returned empty (thought-only model output with no
+        # recoverable answer text), ask the user to rephrase rather than silently
+        # returning a misleading "outside knowledge base" rejection.
+        if not answer or not answer.strip():
+            return (
+                "I wasn't able to generate a clear response for this question. "
+                "Could you please rephrase or add more detail about your symptoms?"
+            )
+
+        answer = self._apply_anatomy_guardrails_to_answer(
+            raw_query=raw_query,
+            draft_answer=answer,
+            context_block=context_block,
+            anatomy_facts=anatomy_facts,
+        )
         
         return answer
+
+    def apply_abstention_disclaimer(self, answer: str, grounding_result: dict) -> str:
+        """Prepend a safety disclaimer if the answer is not fully grounded.
+        
+        Called after grounding verification. For PARTIAL or FAIL verdicts,
+        warns the user that the answer may not be fully supported by sources.
+        This is safer than confidently delivering potentially wrong advice.
+        """
+        verdict = grounding_result.get("verdict", "PASS")
+        
+        if verdict == "PASS":
+            return answer
+        
+        contradicted = grounding_result.get("contradicted_count", 0)
+        unverified = grounding_result.get("unverified_count", 0)
+        
+        if verdict == "FAIL" and contradicted > 0:
+            disclaimer = (
+                "⚠️ **Important Notice:** Some statements in this response may conflict with "
+                "the medical reference texts. Please treat this as preliminary guidance only "
+                "and **consult your ophthalmologist** for accurate medical advice.\n\n"
+            )
+        elif verdict == "FAIL":
+            disclaimer = (
+                "⚠️ **Notice:** I could not fully verify this response against my medical "
+                "reference texts. Please treat this as general guidance and **confirm with "
+                "your eye care professional**.\n\n"
+            )
+        else:  # PARTIAL
+            disclaimer = (
+                "ℹ️ *Note: Some parts of this response could not be fully verified against "
+                "the medical reference texts. Please confirm with your eye doctor.*\n\n"
+            )
+        
+        return disclaimer + answer
 
     # ── Entity Extraction with EyeCLIP Integration ───────────────────────────
     def extract_entities_from_answer(
@@ -836,22 +1060,39 @@ class MedGemmaGenerator:
         visual_findings: Optional[str] = None,
         turn_id: int = 0,
     ) -> List[ClinicalEntity]:
-        """Extract entities from both query and answer, then merge for state updates."""
-        query_entities = self.entity_extractor.extract_entities(
+        """
+        Extract entities for session updates with source-aware safeguards.
+
+        Symptoms/findings/imaging/conditions are treated as patient-side signals
+        and are therefore sourced only from the raw user query and EyeCLIP
+        inferences.
+        """
+        patient_entities = self.entity_extractor.extract_entities(
             text=query_text,
-            visual_findings=None,
+            visual_findings=visual_findings,
             turn_id=turn_id,
             source="user_query",
         )
         answer_entities = self.entity_extractor.extract_entities(
             text=answer_text,
-            visual_findings=visual_findings,
+            visual_findings=None,
             turn_id=turn_id,
             source="answer",
         )
 
+        patient_owned_types = {
+            EntityType.SYMPTOM,
+            EntityType.FINDING,
+            EntityType.IMAGING,
+            EntityType.CONDITION,
+        }
+        answer_entities = [
+            entity for entity in answer_entities
+            if entity.entity_type not in patient_owned_types
+        ]
+
         merged: Dict[tuple, ClinicalEntity] = {}
-        for entity in query_entities + answer_entities:
+        for entity in patient_entities + answer_entities:
             key = ((entity.normalized or entity.text.lower()), entity.entity_type)
             prev = merged.get(key)
             if prev is None or entity.confidence > prev.confidence:
@@ -885,28 +1126,76 @@ class MedGemmaGenerator:
         import re
         from src.evaluator import get_evaluator
         
+        # Fast exit: if the model is just refusing to answer, it needs no grounding
+        refusal_patterns = [
+            "outside my ophthalmology knowledge",
+            "outside my knowledge base",
+            "cannot answer this",
+            "i am sorry",
+            "i'm sorry",
+        ]
+        
+        # If it's a short refusal, skip grounding logic and just PASS
+        if len(answer) < 150 and any(p in answer.lower() for p in refusal_patterns):
+            if verbose:
+                print("[Grounding NLI] Answer is a standard refusal. Bypassing grounding.")
+            return {
+                "verdict": "PASS",
+                "flagged_claims": [],
+                "anatomy_mismatch": "Unknown",
+                "reasoning": "Standard refusal/apology bypass."
+            }
+        
         # Fast sentence splitting to extract claims
         # Ignore short introductory/hedging phrases or common boilerplate
-        potential_claims = [c.strip() for c in re.split(r'(?<=[.!?])\s+', answer) if len(c.strip()) > 15]
+        raw_claims = []
+        for line in answer.split('\n'):
+            line = line.strip()
+            if not line or line.endswith(':'):
+                continue  # Skip empty lines and headings like "Possible Causes:"
+            raw_claims.append(line)
+            
+        potential_claims = [c.strip() for c in raw_claims if len(c.strip()) > 15]
         
-        boilerplate_keywords = {
-            "consult", "doctor", "specialist", "professional", "healthcare",
-            "based on", "provided text", "according to", "possible causes",
-            "important to note", "however", "recommend", "seek medical"
+        # Only skip purely advisory/referral sentences and automated screening disclaimers.
+        boilerplate_skip_keywords = {
+            "consult your doctor", "see a specialist", "seek professional",
+            "healthcare provider", "seek medical attention",
+            "please visit", "go to the emergency",
+            "automated screening findings", "preliminary findings",
+            "only a professional eye", "evaluation by a qualified",
+            "perform a comprehensive eye exam", "healthy lifestyle choices",
         }
         
         claims = []
         for c in potential_claims:
             low_c = c.lower()
-            # If the sentence is mostly boilerplate/hedging, skip grounding
-            if any(kw in low_c for kw in boilerplate_keywords) and len(low_c) < 100:
+            
+            # Skip advisory sentences and standard VLM disclaimers (no length limit for VLM disclaimers)
+            if any(kw in low_c for kw in boilerplate_skip_keywords):
                 continue
+                
+            # Strip common introductory phrases that confuse the strict NLI model
+            prefixes_to_strip = [
+                "based on the provided medical reference texts, ",
+                "based on the medical reference texts, ",
+                "according to the texts, ",
+                "the oct images show "
+            ]
+            clean_c = low_c
+            for p in prefixes_to_strip:
+                if clean_c.startswith(p):
+                    clean_c = clean_c[len(p):].strip()
+                    c = c[len(p):].strip()
+            
             claims.append(c)
         
-        # Add anatomy constraint as a meta-claim if provided
-        if query_anatomy:
-            anatomy_str = ", ".join(query_anatomy)
-            claims.append(f"The patient's issue specifically involves the {anatomy_str}.")
+        # NOTE: Anatomy meta-claims are intentionally NOT injected into the NLI
+        # claim list. They are system assertions, not answer claims. Injecting them
+        # causes false NLI failures that cascade into the self-correction prompt,
+        # resulting in instruction leakage ("DO NOT repeat these...") appearing
+        # verbatim in the patient-facing output. Anatomy consistency is enforced
+        # separately via _apply_anatomy_guardrails_to_answer().
 
         try:
             evaluator = get_evaluator()

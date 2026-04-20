@@ -72,6 +72,33 @@ class RetinaRetriever:
 
         print("Retriever stack ready.")
 
+    def _is_noisy_aao_doc(self, doc: Document) -> bool:
+        chapter = str(doc.metadata.get("chapter", "")).lower()
+        section = str(doc.metadata.get("section", "")).lower()
+        text = (doc.page_content or "").lower()
+
+        if chapter != "aao preferred practice patterns":
+            return False
+
+        noisy_sections = (
+            "supplement",
+            "committee/disclosures",
+            "keeping current",
+            "revisions & publication schedule",
+            "ppp translations",
+            "about preferred practice patterns",
+        )
+        if any(tag in section for tag in noisy_sections):
+            return True
+
+        noisy_text_signals = (
+            "literature searches for this ppp",
+            "my dashboard my education find an ophthalmologist",
+            "all rights reserved",
+            "registered trademarks of the american academy of ophthalmology",
+        )
+        return any(sig in text for sig in noisy_text_signals)
+
     def _rerank(self, query: str, docs: list[Document], top_k: int = 5) -> list[Document]:
         """Score each (query, document) pair with MedCPT Cross-Encoder."""
         if not docs:
@@ -128,6 +155,16 @@ class RetinaRetriever:
         # Over-fetch children from hybrid retriever
         child_hits = self.hybrid_retriever.invoke(query)[:k * 4]
 
+        # Drop known AAO boilerplate/supplement chunks before re-ranking.
+        filtered_child_hits = [doc for doc in child_hits if not self._is_noisy_aao_doc(doc)]
+        if filtered_child_hits:
+            if verbose and len(filtered_child_hits) != len(child_hits):
+                print(
+                    f"[Retriever] Filtered {len(child_hits) - len(filtered_child_hits)} "
+                    "noisy AAO child chunks."
+                )
+            child_hits = filtered_child_hits
+
         # Re-rank children by cross-encoder relevance
         if verbose:
             print(f"[Retriever] Re-ranking {len(child_hits)} child hits...")
@@ -140,6 +177,8 @@ class RetinaRetriever:
             if p_id and p_id not in seen:
                 parent_doc = self.parent_store.get(p_id)
                 if parent_doc:
+                    if self._is_noisy_aao_doc(parent_doc):
+                        continue
                     parents.append(parent_doc)
                     seen.add(p_id)
             if len(parents) >= k:

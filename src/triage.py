@@ -7,6 +7,11 @@ Shared by both the Streamlit frontend (app/main.py) and the CLI pipeline (engine
 
 import re
 
+from src.anatomy import get_eye_anatomy_graph
+
+
+ANATOMY_GRAPH = get_eye_anatomy_graph()
+
 
 def _has_any(q: str, patterns: list[str]) -> bool:
     """Return True if any regex pattern matches the query."""
@@ -45,7 +50,7 @@ def check_red_flags(query: str) -> str | None:
         r'retinal\s+detach',
         r'curtain\s+(falling|over|across)',
         r'flash(es)?\s+(and|with)\s+floater',
-        r'extreme\s+pain',
+        r'(extreme|severe|excruciating|unbearable)\s+pain',
         r'eye\s+burst',
         r'globe\s+rupture',
     ]
@@ -62,10 +67,14 @@ def check_red_flags(query: str) -> str | None:
     # "white spot on black part of eye" + red-eye symptoms).
     corneal_white_spot_patterns = [
         r'white\s+(spot|patch|dot|mark|opacity|ulcer|lesion)',
-        r'black\s+part\s+of\s+(the\s+)?eye',
+        r'black\s+part\s+of\s+(?:(?:the|my|your)\s+)?eye',
+        r'(colored|coloured)\s+part\s+of\s+(?:(?:the|my|your)\s+)?eye',
+        r'white\s+part\s+of\s+(?:(?:the|my|your)\s+)?eye',
         r'cornea\w*',
         r'front\s+of\s+(?:(?:the|my|your)\s+)?eye',
         r'pupil\w*',
+        r'iris\w*',
+        r'sclera\w*',
         r'see\s+(it\s+)?in\s+(the\s+)?mirror|visible\s+in\s+(the\s+)?mirror',
         r'on\s+(?:(?:the|my|your)\s+)?(eye|cornea|iris|conjunctiva)',
     ]
@@ -83,9 +92,11 @@ def check_red_flags(query: str) -> str | None:
         r'lens\s+wearer',
     ]
 
+    anatomy_profile = ANATOMY_GRAPH.infer_query_profile(q)
+
     has_white_spot = _has_any(q, [corneal_white_spot_patterns[0]])
-    has_corneal_location = _has_any(q, corneal_white_spot_patterns[1:5])
-    has_visible_surface_language = _has_any(q, corneal_white_spot_patterns[5:])
+    has_corneal_location = _has_any(q, corneal_white_spot_patterns[1:7]) or anatomy_profile.get("has_surface_location", False)
+    has_visible_surface_language = _has_any(q, corneal_white_spot_patterns[7:])
     inflammatory_hits = sum(bool(re.search(p, q)) for p in inflammatory_red_eye_patterns)
     has_red_eye_features = inflammatory_hits >= 1
     has_negative_redness = _has_negated_symptom(q, r"red\w*")
@@ -100,11 +111,30 @@ def check_red_flags(query: str) -> str | None:
 
     if (has_white_spot and has_red_eye_features and (has_corneal_location or has_visible_surface_language)) or has_contact_lens_risk:
         return (
-            "⚠️ **URGENT EYE ALERT (Same-Day):** A **white spot on the front/black part of the eye** "
+            "⚠️ **URGENT EYE ALERT (Same-Day):** A **white spot on the clear front eye surface or around the iris/pupil area** "
             "with redness/watering can indicate **infectious keratitis or a corneal ulcer**, which may "
             "threaten vision if treatment is delayed. **Please seek same-day in-person care (within 24 hours) at an eye "
             "hospital/eye casualty.**\n\n"
             "Until examined: avoid contact lenses, avoid steroid eye drops unless prescribed, and do not rub the eye."
+        )
+
+    # Leukocoria pattern: white spot/reflex on the pupil area WITHOUT inflammation.
+    # This can indicate cataract, corneal opacity, or retinoblastoma (in children).
+    # Requires prompt ophthalmologic evaluation even without acute symptoms.
+    has_pupil_location = _has_any(q, [
+        r'pupil\w*',
+        r'black\s+part\s+of\s+(?:(?:the|my|your)\s+)?eye',
+        r'black\s+cent(?:er|re)\s+of\s+(?:(?:the|my|your)\s+)?eye',
+    ]) or anatomy_profile.get("has_surface_location", False)
+
+    if has_white_spot and has_pupil_location and not has_red_eye_features:
+        return (
+            "⚠️ **IMPORTANT — Please See an Eye Doctor Soon:** A **white spot or white reflex "
+            "in the pupil area** (called **leukocoria**) can have several causes including "
+            "**cataract, corneal opacity**, or other conditions that need professional evaluation. "
+            "In children, this requires **urgent** assessment to rule out serious conditions.\n\n"
+            "Please schedule an appointment with an ophthalmologist as soon as possible "
+            "for a proper dilated eye examination."
         )
 
     return None

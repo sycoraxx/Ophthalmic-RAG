@@ -37,6 +37,9 @@ from src.triage import check_red_flags
 from src.state.clinical_session_state import ClinicalSessionState
 from src.state.clinical_entity_extractor import ClinicalEntity, EntityType
 
+# ASR (speech-to-text)
+from src.speech.speech_recognizer import SpeechRecognizer, TranscriptionResult
+
 MAX_CORRECTION_RETRIES = 1
 SESSION_DIR = Path("./data/sessions")
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
@@ -75,6 +78,31 @@ class QueryEngine:
         except Exception as e:
             print(f"[QueryEngine] ⚠ EyeCLIP failed to load: {e}")
             self.vision_agent = None
+
+        # ASR (speech-to-text) agent is optional
+        try:
+            self.speech_recognizer = SpeechRecognizer()
+            print("[QueryEngine] ✓ Speech recognizer loaded.")
+        except Exception as e:
+            print(f"[QueryEngine] ⚠ Speech recognizer failed to load: {e}")
+            self.speech_recognizer = None
+
+        # Start a background thread to run dummy inferences and cache GPU memory
+        self._warmup_models()
+
+    def _warmup_models(self):
+        """Run a dummy forward pass on a background thread to cache CUDA memory / execution graphs."""
+        import threading
+        def warmup_task():
+            try:
+                print("[QueryEngine] ⚙️ Running background model warmup to reduce initial latency...")
+                # Dummy Generation pass (shortest possible token generation)
+                self.generator._generate([{"role": "user", "content": "hi"}], max_new_tokens=1)
+                print("[QueryEngine] ✓ Background model warmup complete.")
+            except Exception as e:
+                print(f"[QueryEngine] ⚠ Background warmup failed: {e}")
+                
+        threading.Thread(target=warmup_task, daemon=True).start()
 
     # ── Pass-through accessors (backward compat) ─────────────────────────────
     def refine_query(self, raw_query: str, recent_history: Optional[list] = None, 
@@ -142,6 +170,35 @@ class QueryEngine:
             session.save(str(session_path))
         except Exception as e:
             print(f"[Session] ⚠ Failed to persist session: {e}")
+
+    # ── Speech-to-Text ────────────────────────────────────────────────────────
+    def transcribe_audio(self, audio_input) -> TranscriptionResult | None:
+        """
+        Transcribe audio to text using faster-whisper.
+
+        Args:
+            audio_input: Raw audio bytes, io.BytesIO, or file path string.
+
+        Returns:
+            TranscriptionResult with .text, .duration_seconds, etc.
+            None if ASR is unavailable.
+        """
+        if self.speech_recognizer is None or not self.speech_recognizer.is_ready:
+            print("[QueryEngine] ⚠ Speech recognizer not available")
+            return None
+        try:
+            return self.speech_recognizer.transcribe(audio_input)
+        except Exception as e:
+            print(f"[QueryEngine] ⚠ Transcription failed: {e}")
+            return None
+
+    @property
+    def asr_ready(self) -> bool:
+        """Whether the ASR model is loaded and ready."""
+        return (
+            self.speech_recognizer is not None
+            and self.speech_recognizer.is_ready
+        )
 
     # ── Image Analysis (unchanged) ───────────────────────────────────────────
     def analyze_image(self, image_path: str) -> Optional[str]:
@@ -308,7 +365,9 @@ class QueryEngine:
         start_time = time.time()
 
         def _format_return(answer_text: str, visual: Optional[str], active_session: Optional[ClinicalSessionState]) -> Any:
-            if session_enabled and request_session_id is None and active_session is not None:
+            # Always include session_id when session tracking is enabled so the
+            # caller can update its stored ID on every turn, not just the first.
+            if session_enabled and active_session is not None:
                 base = (answer_text, visual, active_session.session_id)
             else:
                 base = (answer_text, visual)
@@ -339,6 +398,7 @@ class QueryEngine:
                 print(f"[QueryEngine] Resetting session due to inactivity/topic drift")
             session = session.reset_for_new_topic()
             session_id = session.session_id
+            self._active_sessions[session_id] = session
 
         # ── Step 0: Vision Analysis (optional) ───────────────────────────────
         visual_findings = None
@@ -560,29 +620,43 @@ class QueryEngine:
         if verbose:
             print("\n[QueryEngine] Verifying answer grounding...")
         
-        # Detect query anatomy for verification
         if fast_mode:
             grounding = {"verdict": "FAST MODE (Unverified)", "flagged_claims": [], "retries": 0}
         else:
-            query_anatomy = self.generator._detect_anatomy(raw_query) if session_enabled else None
-            grounding_method = self.config.get("grounding_method", "nli")
-            grounding = self.generator.verify_grounding(
+            # Combine textual context with visual findings so claims about
+            # the image aren't penalized.
+            verification_context = context_block
+            if visual_findings:
+                verification_context += f"\n\n[Visual Findings (Ground Truth)]\n{visual_findings}"
+                
+            grounding = self._verify_grounding_medcpt(
                 answer,
-                context_block,
-                query_anatomy=query_anatomy,
+                verification_context,
                 verbose=verbose,
-                method=grounding_method,
             )
             grounding["retries"] = 0
 
         # ── Step 5: Self-Correction Loop ─────────────────────────────────────
+        # Only trigger on FAIL (contradicted claims). PARTIAL is acceptable —
+        # it means most claims are grounded with a few unverifiable statements,
+        # which is normal for paraphrased medical advice.
         retries = 0
         while (not fast_mode) and grounding["verdict"] == "FAIL" and retries < MAX_CORRECTION_RETRIES:
             retries += 1
             if verbose:
-                print(f"\n[QueryEngine] ⚠️  Grounding FAILED — self-correcting (attempt {retries})...")
+                print(f"\n[QueryEngine] ⚠️  Grounding FAIL — self-correcting (attempt {retries})...")
 
-            flagged = "\n".join(f"- {c}" for c in grounding["flagged_claims"])
+            # Extract flagged claims from new structure (claim records have 'claim' key)
+            unsupported = grounding.get("flagged_claims", [])
+            if not unsupported:
+                unsupported_records = grounding.get("unsupported_claims", [])
+                if unsupported_records:
+                    unsupported = [
+                        r["claim"] if isinstance(r, dict) else str(r)
+                        for r in unsupported_records
+                    ]
+
+            flagged = "\n".join(f"- {c}" for c in unsupported)
             if not flagged:
                 flagged = "- Unspecified claims not supported by sources"
 
@@ -599,17 +673,32 @@ class QueryEngine:
 
             if verbose:
                 print("[QueryEngine] Re-verifying corrected answer...")
-            grounding = self.generator.verify_grounding(
-                answer, 
-                context_block, 
-                query_anatomy=query_anatomy,
-                verbose=verbose
+            grounding = self._verify_grounding_medcpt(
+                answer,
+                verification_context,
+                verbose=verbose,
             )
             grounding["retries"] = retries
 
+        # Extract flagged claims for trace (handle both old and new formats)
+        flagged_for_trace = grounding.get("flagged_claims", [])
+        if not flagged_for_trace:
+            unsupported_records = grounding.get("unsupported_claims", [])
+            if unsupported_records:
+                flagged_for_trace = [
+                    r["claim"] if isinstance(r, dict) else str(r)
+                    for r in unsupported_records
+                ]
+
         trace["verdict"] = grounding.get("verdict", "N/A")
         trace["retries"] = retries
-        trace["flagged_claims"] = grounding.get("flagged_claims", [])
+        trace["flagged_claims"] = flagged_for_trace
+
+        # ── Step 5.5: Apply Abstention Disclaimer ────────────────────────────
+        # If grounding is PARTIAL or FAIL after self-correction, prepend a
+        # safety disclaimer so the user knows the answer isn't fully verified.
+        if not fast_mode:
+            answer = self.generator.apply_abstention_disclaimer(answer, grounding)
 
         # ── Step 6: Extract Entities & Update Session State ──────────────────
         if session_enabled and session is not None:
@@ -620,7 +709,9 @@ class QueryEngine:
                 turn_id=current_turn,
             )
 
-            text_for_extraction = f"Patient Question: {raw_query}\nClinical Answer: {answer}"
+            text_for_extraction = f"Patient Question: {raw_query}"
+            if visual_findings:
+                text_for_extraction += f"\nEyeCLIP Findings: {visual_findings}"
             # Update session with merged entities (EyeCLIP + text)
             session.update_from_entities(entities, current_turn, text=text_for_extraction)
             
@@ -637,10 +728,242 @@ class QueryEngine:
 
         # ── Return ───────────────────────────────────────────────────────────
         if verbose:
-            status = "✅ GROUNDED" if grounding["verdict"] == "PASS" else "⚠️ PARTIALLY GROUNDED"
+            if grounding["verdict"] == "PASS":
+                status = "✅ GROUNDED"
+            elif grounding["verdict"] == "PARTIAL":
+                status = "⚠️ PARTIALLY GROUNDED (disclaimer added)"
+            else:
+                status = "❌ UNGROUNDED (disclaimer added)"
             print(f"\n[QueryEngine] Final status: {status}")
 
         return _format_return(answer, visual_findings, session)
+
+    # ── MedCPT-Based Grounding Verification ──────────────────────────────────
+    def _verify_grounding_medcpt(
+        self,
+        answer: str,
+        context_block: str,
+        verbose: bool = True,
+    ) -> dict:
+        """
+        Verify answer grounding using the MedCPT Cross-Encoder (already loaded
+        for reranking) instead of DeBERTa NLI.
+
+        Why MedCPT > DeBERTa NLI for medical grounding:
+          - MedCPT: 255M PubMed query-article pairs → understands medical
+            paraphrasing, synonyms, and clinical reasoning natively.
+          - DeBERTa NLI: generic NLI on MNLI/SNLI → flags nearly every
+            medical paraphrase as "neutral" (unverified).
+
+        Approach:
+          1. Sentence-tokenize the answer into atomic claims.
+          2. Chunk context into overlapping windows (512-token limit).
+          3. Score each (claim, window) pair with MedCPT.
+          4. A claim is "supported" if its best window score exceeds a
+             relevance threshold — high relevance from the source context
+             that generated the answer ≈ grounded.
+
+        Verdict tiers:
+          PASS    — all claims supported
+          PARTIAL — some unverifiable but none contradicted / <50% unsupported
+          FAIL    — majority of claims have very low relevance (≤ low_threshold)
+        """
+        import torch
+
+        # ── Quick exits ──────────────────────────────────────────────────────
+        refusal_patterns = [
+            "outside my ophthalmology knowledge",
+            "outside my knowledge base",
+            "cannot answer this",
+            "i am sorry",
+            "i'm sorry",
+            "couldn't find relevant information",
+        ]
+        if len(answer) < 150 and any(p in answer.lower() for p in refusal_patterns):
+            if verbose:
+                print("[Grounding MedCPT] Standard refusal — bypass.")
+            return {
+                "verdict": "PASS",
+                "flagged_claims": [],
+                "unsupported_claims": [],
+                "reasoning": "Standard refusal bypass.",
+            }
+
+        if not context_block.strip():
+            return {
+                "verdict": "FAIL",
+                "flagged_claims": [],
+                "unsupported_claims": [],
+                "reasoning": "Empty context.",
+            }
+
+        # ── Sentence-tokenize the answer into atomic claims ──────────────────
+        atomic_claims: list[str] = []
+        seen: set[str] = set()
+
+        # First split by newlines (generator output has markdown structure),
+        # then by sentence boundaries within each line.
+        boilerplate_skip = {
+            "consult your doctor", "see a specialist", "seek professional",
+            "healthcare provider", "seek medical attention", "please visit",
+            "go to the emergency", "automated screening", "preliminary findings",
+            "only a professional", "evaluation by a qualified",
+            "perform a comprehensive eye exam", "healthy lifestyle",
+            "i am an ai", "i'm an ai", "disclaimer",
+        }
+
+        for line in answer.split("\n"):
+            line = line.strip()
+            if not line or line.endswith(":"):
+                continue
+            low_line = line.lower()
+            if any(kw in low_line for kw in boilerplate_skip):
+                continue
+
+            # Split into sentences
+            sentences = re.split(r'(?<=[.!?])\s+', line)
+            for sent in sentences:
+                sent = sent.strip()
+                if len(sent) < 25:
+                    continue
+                # Skip bullet-only items (e.g. "- Diabetes")
+                clean = re.sub(r'^[-•*]\s*', '', sent)
+                if len(clean.split()) <= 4:
+                    continue
+                key = clean.lower()
+                if key not in seen:
+                    seen.add(key)
+                    atomic_claims.append(clean)
+
+        if not atomic_claims:
+            if verbose:
+                print("[Grounding MedCPT] No verifiable claims extracted → PASS")
+            return {
+                "verdict": "PASS",
+                "flagged_claims": [],
+                "unsupported_claims": [],
+                "reasoning": "No verifiable claims extracted.",
+            }
+
+        # ── Chunk context into overlapping windows ───────────────────────────
+        tokenizer = self.retriever.reranker_tokenizer
+        MAX_CTX_TOKENS = 400  # Leave room for claim tokens in the 512 budget
+        OVERLAP = 80
+
+        ctx_ids = tokenizer.encode(context_block, add_special_tokens=False)
+
+        if len(ctx_ids) <= MAX_CTX_TOKENS:
+            context_windows = [context_block]
+        else:
+            context_windows = []
+            start = 0
+            while start < len(ctx_ids):
+                end = min(start + MAX_CTX_TOKENS, len(ctx_ids))
+                window_text = tokenizer.decode(ctx_ids[start:end], skip_special_tokens=True)
+                context_windows.append(window_text)
+                if end >= len(ctx_ids):
+                    break
+                start += MAX_CTX_TOKENS - OVERLAP
+
+        # ── Score each claim against all windows ─────────────────────────────
+        SUPPORT_THRESHOLD = 0.35   # Above this = supported (context is relevant)
+        LOW_THRESHOLD = 0.10       # Below this = clearly unsupported
+
+        supported_claims: list[dict] = []
+        unsupported_claims: list[dict] = []
+        weak_claims: list[dict] = []  # Between low and support thresholds
+
+        model = self.retriever.reranker_model
+        device = self.retriever.reranker_device
+
+        for claim in atomic_claims:
+            pairs = [[claim, window] for window in context_windows]
+
+            with torch.no_grad():
+                encoded = tokenizer(
+                    pairs,
+                    truncation=True,
+                    padding=True,
+                    return_tensors="pt",
+                    max_length=512,
+                ).to(device)
+                logits = model(**encoded).logits
+
+                # Collapse to scalar relevance scores (same logic as _rerank)
+                if logits.dim() == 1:
+                    relevance = logits
+                elif logits.size(-1) == 1:
+                    relevance = logits.squeeze(dim=-1)
+                else:
+                    relevance = torch.softmax(logits, dim=-1)[..., -1]
+
+                if relevance.dim() == 0:
+                    relevance = relevance.unsqueeze(0)
+
+                best_score = relevance.max().item()
+
+            record = {
+                "claim": claim,
+                "relevance_score": round(best_score, 4),
+            }
+
+            if best_score >= SUPPORT_THRESHOLD:
+                record["status"] = "supported"
+                supported_claims.append(record)
+            elif best_score <= LOW_THRESHOLD:
+                record["status"] = "unsupported"
+                unsupported_claims.append(record)
+            else:
+                record["status"] = "weak"
+                weak_claims.append(record)
+
+        # ── Determine verdict ────────────────────────────────────────────────
+        total = len(supported_claims) + len(unsupported_claims) + len(weak_claims)
+        unsupported_ratio = len(unsupported_claims) / max(total, 1)
+
+        if unsupported_ratio > 0.5:
+            verdict = "FAIL"
+            reasoning = (
+                f"Majority of claims unsupported: {len(unsupported_claims)}/{total} "
+                f"below relevance threshold ({len(context_windows)} context windows)."
+            )
+        elif unsupported_claims or weak_claims:
+            verdict = "PARTIAL"
+            reasoning = (
+                f"{len(supported_claims)}/{total} claims supported, "
+                f"{len(weak_claims)} weakly matched, "
+                f"{len(unsupported_claims)} unsupported "
+                f"({len(context_windows)} context windows)."
+            )
+        else:
+            verdict = "PASS"
+            reasoning = (
+                f"All {len(supported_claims)} claims supported by context "
+                f"({len(context_windows)} context windows)."
+            )
+
+        # Flagged = only the actually unsupported ones (not weak)
+        flagged = [r["claim"] for r in unsupported_claims]
+
+        if verbose:
+            print(f"[Grounding MedCPT] Verdict: {verdict}")
+            print(f"  Supported: {len(supported_claims)}, Weak: {len(weak_claims)}, "
+                  f"Unsupported: {len(unsupported_claims)} / {total} total claims")
+            for r in unsupported_claims:
+                print(f"  ⚠️  {r['relevance_score']:.4f} | {r['claim'][:80]}...")
+            if weak_claims and verbose:
+                for r in weak_claims[:3]:
+                    print(f"  ℹ️  {r['relevance_score']:.4f} | {r['claim'][:80]}...")
+
+        return {
+            "verdict": verdict,
+            "flagged_claims": flagged,
+            "unsupported_claims": unsupported_claims + weak_claims,
+            "reasoning": reasoning,
+            "supported_count": len(supported_claims),
+            "unsupported_count": len(unsupported_claims),
+            "weak_count": len(weak_claims),
+        }
 
     # ── Utility Methods ──────────────────────────────────────────────────────
     def clear_session_cache(self):
@@ -661,12 +984,15 @@ class QueryEngine:
                 except Exception:
                     return None
         if session:
+            retrieval_context = session.to_query_context(include_provisional=True)
             return {
                 "session_id": session.session_id,
                 "turns": session.total_turns,
                 "anatomy": session.anatomy_of_interest.value if session.anatomy_of_interest else None,
                 "condition": session.primary_condition.value if session.primary_condition else None,
-                "context": session.to_query_context(),
+                "context": retrieval_context,
+                "query_terms": session.to_query_terms(include_provisional=True),
+                "session_json": session.to_dict(),
             }
         return None
 

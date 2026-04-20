@@ -171,6 +171,65 @@ PUBMED_QUERIES = {
         "gene therapy retina[Title/Abstract]) AND "
         "(genetics OR mutation OR therapy)"
     ),
+
+    # ── Leukocoria and White Pupil ───────────────────────────────────────────
+    "Leukocoria and White Pupil": (
+        "(leukocoria[Title/Abstract] OR white pupillary reflex[Title/Abstract] OR "
+        "white pupil[Title/Abstract] OR abnormal red reflex[Title/Abstract] OR "
+        "absent red reflex[Title/Abstract]) AND "
+        "(differential diagnosis OR retinoblastoma OR cataract OR evaluation)"
+    ),
+
+    # ── Anterior Segment Signs and Symptoms ──────────────────────────────────
+    "Anterior Segment Signs": (
+        "(corneal opacity[Title/Abstract] OR corneal scar[Title/Abstract] OR "
+        "band keratopathy[Title/Abstract] OR corneal dystrophy[Title/Abstract] OR "
+        "anterior segment anomaly[Title/Abstract] OR iris lesion[Title/Abstract] OR "
+        "pupil abnormality[Title/Abstract]) AND "
+        "(diagnosis OR differential OR management)"
+    ),
+
+    # ── Cherry-Red Spot and Retinal Vascular Signs ───────────────────────────
+    "Cherry-Red Spot Differential": (
+        "(cherry red spot[Title/Abstract] OR cherry-red spot[Title/Abstract] OR "
+        "central retinal artery occlusion[Title/Abstract] OR Tay-Sachs[Title/Abstract] OR "
+        "Niemann-Pick[Title/Abstract] OR macular ischemia[Title/Abstract]) AND "
+        "(fundoscopy OR ophthalmoscopy OR differential diagnosis OR retinal)"
+    ),
+
+    # ── Corneal Opacity and Scarring ─────────────────────────────────────────
+    "Corneal Opacity and Scarring": (
+        "(corneal opacity[Title/Abstract] OR corneal scar[Title/Abstract] OR "
+        "leucoma[Title/Abstract] OR nebula cornea[Title/Abstract] OR "
+        "corneal vascularization[Title/Abstract]) AND "
+        "(etiology OR management OR keratoplasty OR visual rehabilitation)"
+    ),
+
+    # ── Pupillary Abnormalities ──────────────────────────────────────────────
+    "Pupillary Abnormalities": (
+        "(pupillary abnormality[Title/Abstract] OR anisocoria[Title/Abstract] OR "
+        "Marcus Gunn pupil[Title/Abstract] OR Horner syndrome[Title/Abstract] OR "
+        "relative afferent pupillary defect[Title/Abstract] OR "
+        "Argyll Robertson pupil[Title/Abstract] OR Adie pupil[Title/Abstract]) AND "
+        "(diagnosis OR evaluation OR neuro-ophthalmology)"
+    ),
+
+    # ── Ocular Emergency Signs ───────────────────────────────────────────────
+    "Ocular Emergency Signs": (
+        "(ocular emergency[Title/Abstract] OR eye emergency[Title/Abstract] OR "
+        "acute vision loss[Title/Abstract] OR chemical eye injury[Title/Abstract] OR "
+        "globe rupture[Title/Abstract] OR hyphema[Title/Abstract] OR "
+        "acute angle closure[Title/Abstract]) AND "
+        "(management OR triage OR emergency department)"
+    ),
+
+    # ── Ocular Manifestations of Systemic Disease ────────────────────────────
+    "Systemic Disease Ocular Manifestations": (
+        "(ocular manifestation[Title/Abstract]) AND "
+        "(diabetes OR hypertension OR lupus OR sarcoidosis OR "
+        "tuberculosis OR HIV OR leukemia OR sickle cell) AND "
+        "(ophthalmology OR retina OR fundus)"
+    ),
 }
 
 
@@ -206,6 +265,20 @@ SEMANTIC_SCHOLAR_QUERIES = [
     "optic disc drusen diagnosis management",
     "ocular trauma penetrating injury epidemiology India",
     "Behcet disease ocular manifestations treatment",
+    "leukocoria white pupillary reflex differential diagnosis retinoblastoma",
+    "leukocoria screening pediatric cataract congenital",
+    "cherry red spot central retinal artery occlusion fundoscopy",
+    "cherry red spot Tay-Sachs Niemann-Pick metabolic storage disease",
+    "corneal opacity scar leucoma visual rehabilitation",
+    "corneal opacity congenital pediatric differential diagnosis",
+    "pupillary abnormality anisocoria Horner syndrome evaluation",
+    "relative afferent pupillary defect Marcus Gunn diagnosis",
+    "ocular emergency triage acute vision loss management",
+    "chemical eye injury irrigation emergency treatment",
+    "ocular manifestations systemic disease diabetes hypertension",
+    "anterior segment examination slit lamp findings",
+    "band keratopathy corneal dystrophy anterior segment",
+    "iris lesion nodule anterior segment differential",
 ]
 
 # ── EuropePMC Queries (diverse, India-focused) ───────────────────────────────
@@ -230,6 +303,12 @@ EUROPEPMC_QUERIES = [
     "central retinal vein occlusion anti-VEGF",
     "artificial intelligence retinal screening India",
     "teleophthalmology rural India",
+    "leukocoria white pupil retinoblastoma India",
+    "corneal opacity visual impairment India",
+    "cherry red spot retinal artery occlusion case report",
+    "pupillary abnormality neuro-ophthalmology evaluation",
+    "ocular emergency department triage India",
+    "systemic disease ocular manifestation India",
 ]
 
 
@@ -739,6 +818,35 @@ def _match_category(query: str) -> str:
         "blepharospasm": "Oculoplastics and Orbit",
         "keratoconus": "Corneal Diseases",
         "cross-linking": "Corneal Diseases",
+        "leukocoria": "Leukocoria and White Pupil",
+        "white pupil": "Leukocoria and White Pupil",
+        "white reflex": "Leukocoria and White Pupil",
+        "red reflex": "Leukocoria and White Pupil",
+        "cherry red spot": "Cherry-Red Spot Differential",
+        "cherry-red spot": "Cherry-Red Spot Differential",
+        "central retinal artery": "Cherry-Red Spot Differential",
+        "Tay-Sachs": "Cherry-Red Spot Differential",
+        "Niemann-Pick": "Cherry-Red Spot Differential",
+        "corneal opacity": "Corneal Opacity and Scarring",
+        "corneal scar": "Corneal Opacity and Scarring",
+        "leucoma": "Corneal Opacity and Scarring",
+        "band keratopathy": "Anterior Segment Signs",
+        "corneal dystrophy": "Anterior Segment Signs",
+        "anterior segment": "Anterior Segment Signs",
+        "iris lesion": "Anterior Segment Signs",
+        "anisocoria": "Pupillary Abnormalities",
+        "Horner": "Pupillary Abnormalities",
+        "Marcus Gunn": "Pupillary Abnormalities",
+        "pupillary defect": "Pupillary Abnormalities",
+        "Argyll Robertson": "Pupillary Abnormalities",
+        "Adie pupil": "Pupillary Abnormalities",
+        "ocular emergency": "Ocular Emergency Signs",
+        "eye emergency": "Ocular Emergency Signs",
+        "chemical injury": "Ocular Emergency Signs",
+        "globe rupture": "Ocular Emergency Signs",
+        "hyphema": "Ocular Emergency Signs",
+        "acute vision loss": "Ocular Emergency Signs",
+        "ocular manifestation": "Systemic Disease Ocular Manifestations",
     }
     for kw, cat in keyword_map.items():
         if kw.lower() in query_lower:
@@ -748,8 +856,8 @@ def _match_category(query: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch ophthalmic articles for RAG knowledge base")
-    parser.add_argument("--max-per-query", type=int, default=250,
-                        help="Max articles per PubMed query category (default: 250)")
+    parser.add_argument("--max-per-query", type=int, default=3000,
+                        help="Max articles per PubMed query category (default: 3000)")
     parser.add_argument("--output", type=str, default=str(OUTPUT_MD),
                         help="Output markdown path")
     parser.add_argument("--skip-europepmc", action="store_true",

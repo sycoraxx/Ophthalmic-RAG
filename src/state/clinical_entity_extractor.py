@@ -7,6 +7,7 @@ import json
 import os
 import re
 from pathlib import Path
+from src.anatomy import get_eye_anatomy_graph
 
 class EntityType(Enum):
     ANATOMY = "anatomy"
@@ -195,9 +196,11 @@ class ClinicalEntityExtractor:
         "floaters": [r"\bfloaters?\b"],
         "flashes": [r"\bflashes?\b", r"\bphotopsia\b"],
         "photophobia": [r"\bphotophobia\b", r"\blight sensitivity\b"],
-        "eye pain": [r"\beye pain\b", r"\bocular pain\b", r"\bpainful eye\b"],
-        "redness": [r"\beye redness\b", r"\bred eye\b", r"\bocular redness\b", r"\bredness\b"],
-        "watering": [r"\bwatering\b", r"\bwatery eyes?\b", r"\btearing\b", r"\bexcessive tearing\b", r"\bepiphora\b"],
+        "eye pain": [r"\beye pain\b", r"\bocular pain\b", r"\bpainful eye\b", r"\bpaining\b", r"\bache\b", r"\baching\b"],
+        "redness": [r"\beye redness\b", r"\bred eye\b", r"\bocular redness\b", r"\bredness\b", r"\binjected\b"],
+        "watering": [r"\bwatering\b", r"\bwatery eyes?\b", r"\btearing\b", r"\bexcessive tearing\b", r"\bepiphora\b", r"\bwater coming\b"],
+        "discharge": [r"\bdischarge\b", r"\bgummy eyes\b", r"\bmucopurulent\b", r"\bpus\b", r"\bsticky eyes\b"],
+        "bleeding": [r"\bbleeding\b", r"\bblood in eye\b", r"\bhemorrhage\b", r"\bhaemorrhage\b"],
         "dryness": [
             r"\bdry eye\b",
             r"\bdry eyes\b",
@@ -229,10 +232,29 @@ class ClinicalEntityExtractor:
             r"\bcornea\b",
             r"\bcorneal\b",
             r"\bfront\s+of\s+(the\s+)?eye\b",
-            r"\bblack\s+part\s+of\s+(the\s+)?eye\b",
-            r"\bspot\s+on\s+(the\s+)?black\s+part\s+of\s+(the\s+)?eye\b",
+            r"\bclear\s+front\s+(of\s+)?(the\s+)?eye\b",
+            r"\btransparent\s+front\s+(of\s+)?(the\s+)?eye\b",
         ],
-        "conjunctiva": [r"\bconjunctiva\b", r"\bwhite\s+of\s+(the\s+)?eye\b"],
+        "conjunctiva": [
+            r"\bconjunctiva\b",
+            r"\bwhite\s+of\s+(the\s+)?eye\b",
+            r"\bmembrane\s+over\s+(the\s+)?white\s+part\s+of\s+(the\s+)?eye\b",
+        ],
+        "iris": [
+            r"\biris\b",
+            r"\bcolored\s+part\s+of\s+(the\s+)?eye\b",
+            r"\bcoloured\s+part\s+of\s+(the\s+)?eye\b",
+        ],
+        "pupil": [
+            r"\bpupil\b",
+            r"\bblack\s+part\s+of\s+(the\s+)?eye\b",
+            r"\bblack\s+center\s+of\s+(the\s+)?eye\b",
+            r"\bblack\s+centre\s+of\s+(the\s+)?eye\b",
+        ],
+        "sclera": [
+            r"\bsclera\b",
+            r"\bwhite\s+part\s+of\s+(the\s+)?eye\b",
+        ],
     }
 
     FINDING_PATTERNS = {
@@ -377,6 +399,7 @@ class ClinicalEntityExtractor:
     
     def __init__(self, medgemma_generator):
         self.generator = medgemma_generator
+        self.anatomy_graph = get_eye_anatomy_graph()
         self._entity_templates = self._load_entity_templates()
         self._ophthalmic_lexicon = self._load_ophthalmic_lexicon()
         self._ner_nlp = None
@@ -387,12 +410,15 @@ class ClinicalEntityExtractor:
     
     def _load_entity_templates(self) -> Dict[str, List[str]]:
         """Pre-defined entity templates for few-shot prompting and fallback."""
+        anatomy_terms = {
+            "retina", "macula", "fovea", "optic nerve", "optic disc",
+            "lens", "cornea", "iris", "ciliary body", "choroid",
+            "vitreous", "sclera", "conjunctiva", "eyelid", "retinal pigment epithelium", "RPE",
+        }
+        anatomy_terms.update(self.anatomy_graph.extractable_structure_terms())
+
         return {
-            "anatomy": [
-                "retina", "macula", "fovea", "optic nerve", "optic disc",
-                "lens", "cornea", "iris", "ciliary body", "choroid",
-                "vitreous", "sclera", "conjunctiva", "eyelid", "retinal pigment epithelium", "RPE"
-            ],
+            "anatomy": sorted(anatomy_terms),
             "condition": list(set(v["normalized"] for v in self.EYECLIP_CONDITION_MAP.values() 
                                  if v["type"] == EntityType.CONDITION)),
             "finding": list(set(v["normalized"] for v in self.EYECLIP_CONDITION_MAP.values() 
@@ -762,6 +788,16 @@ class ClinicalEntityExtractor:
         for normalized, patterns in self.PROCEDURE_PATTERNS.items():
             if any(re.search(pat, text_lower, re.I) for pat in patterns):
                 add_entity(normalized, EntityType.PROCEDURE, 0.82)
+
+        # Graph-backed lay anatomy mapping (e.g., "black part of eye" -> pupil).
+        lay_mentions = self.anatomy_graph.resolve_lay_mentions(text)
+        for targets in lay_mentions.values():
+            for structure in targets:
+                add_entity(structure.replace("_", " "), EntityType.ANATOMY, 0.86)
+
+        graph_structures = self.anatomy_graph.detect_structures(text)
+        for structure in graph_structures:
+            add_entity(structure.replace("_", " "), EntityType.ANATOMY, 0.78)
 
         # Conditions/anatomy/imaging from templates
         for keyword in self._entity_templates["condition"]:

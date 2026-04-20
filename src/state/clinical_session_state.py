@@ -675,7 +675,7 @@ class ClinicalSessionState:
         self,
         threshold: float = 0.4,
         include_provisional: bool = False,
-        provisional_min_confidence: float = 0.55,
+        provisional_min_confidence: float = 0.45,
     ) -> bool:
         """Check if session contains any active, meaningful clinical context."""
         if self._is_stable_context_item(self.primary_condition, threshold):
@@ -757,7 +757,7 @@ class ClinicalSessionState:
     def to_query_context(
         self,
         include_provisional: bool = False,
-        provisional_min_confidence: float = 0.55,
+        provisional_min_confidence: float = 0.45,
     ) -> str:
         """
         Convert state to compact query augmentation string for retrieval.
@@ -848,12 +848,39 @@ class ClinicalSessionState:
         if imaging:
             parts.append(f"imaging:{imaging.value}")
         
-        return " [" + " | ".join(parts) + "]" if parts else ""
+        # --- Embed Knowledge Graph Facts ---
+        from src.anatomy import get_eye_anatomy_graph
+        graph = get_eye_anatomy_graph()
+        
+        kg_facts = []
+        if anatomy_values:
+            for term in anatomy_values:
+                node_id = term.replace(" ", "_").lower()
+                fact = graph.nodes.get(node_id, {}).get("fact")
+                if fact:
+                    kg_facts.append(fact)
+                    
+        if condition_values:
+            for term in condition_values:
+                node_id = term.replace(" ", "_").lower()
+                fact = graph.nodes.get(node_id, {}).get("fact")
+                if fact:
+                    kg_facts.append(fact)
+                    
+        if kg_facts:
+            # Deduplicate and limit
+            unique_facts = list(dict.fromkeys(kg_facts))[:2]
+            parts.append(f"kg_facts:{' '.join(unique_facts)}")
+        
+        if not parts:
+            return ""
+            
+        return f" [{' | '.join(parts)}]"
 
     def to_query_terms(
         self,
         include_provisional: bool = False,
-        provisional_min_confidence: float = 0.55,
+        provisional_min_confidence: float = 0.45,
     ) -> str:
         """Flatten high-confidence state into retrieval-friendly plain terms."""
         terms: List[str] = []
@@ -912,7 +939,7 @@ class ClinicalSessionState:
     def to_generation_context(
         self,
         include_provisional: bool = True,
-        provisional_min_confidence: float = 0.55,
+        provisional_min_confidence: float = 0.45,
     ) -> str:
         """
         Convert state to rich context for answer generation.
@@ -993,6 +1020,27 @@ class ClinicalSessionState:
         if self.topic_drift_detected:
             parts.append("⚠ Topic shift detected in conversation")
         
+        # --- Embed Knowledge Graph Facts ---
+        from src.anatomy import get_eye_anatomy_graph
+        graph = get_eye_anatomy_graph()
+        
+        kg_facts = []
+        target_terms = []
+        if self.anatomy_of_interest and self.anatomy_of_interest.confidence > 0.6:
+            target_terms.append(self.anatomy_of_interest.value)
+        if self.primary_condition and self.primary_condition.confidence > 0.6:
+            target_terms.append(self.primary_condition.value)
+            
+        for term in target_terms:
+            node_id = term.replace(" ", "_").lower()
+            fact = graph.nodes.get(node_id, {}).get("fact")
+            if fact:
+                kg_facts.append(fact)
+                
+        if kg_facts:
+            unique_facts = list(dict.fromkeys(kg_facts))[:2]
+            parts.append(f"Grounded Anatomy Facts: {' '.join(unique_facts)}")
+            
         return "\n".join(parts) if parts else ""
     
     def should_reset(self, max_inactive_turns: int = 15) -> bool:
