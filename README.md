@@ -9,35 +9,49 @@ A self-correcting, multimodal RAG (Retrieval-Augmented Generation) pipeline spec
 ### 1. Multimodal Diagnostic Fusion
 - **Visual Intelligence**: Integrates an internal **EyeCLIP** engine (ViT-B/32) specialized for ophthalmic imaging (OCT, CFP, Slit Lamp).
 - **Automated Modality Detection**: Automatically identifies imaging types to optimize diagnostic reasoning.
+- **Voice + Image + Text Input**: Streamlit UI supports typed queries, image upload, and voice capture with ASR transcription.
 
 ### 2. Specialized Medical LLM Stack
 - **MedGemma 1.5-4B**: Fine-tuned for clinical reasoning and medical terminology.
 - **MedEmbed & MedCPT**: Uses specialized medical embeddings and cross-encoders for high-precision retrieval over clinical corpora.
+- **Low-Latency ASR**: `faster-whisper` backend for speech-to-text (`src/speech/speech_recognizer.py`) integrated into the same query pipeline.
 
 ### 3. Intelligent Session Management
 - **Confidence Decay with Staleness Pruning**: Clinical findings and symptoms are tracked with time-based decay. Entries that decay below a threshold are automatically pruned, preventing stale context from lingering across turns.
 - **Image-Aware Context Switching**: When a new image is uploaded mid-conversation, image-derived context (anatomy, conditions, findings, imaging modality) is automatically reset while preserving patient-reported context (symptoms, medications, procedures).
 - **Smart Topic Drift Detection**: Vague follow-up queries (e.g., "what to do now?") correctly inherit the established clinical topic, preventing false session resets. Anatomy-aware mapping bridges conditions to structures (e.g., "cataract" ↔ "lens").
 - **Adaptive Context Thresholds**: Low-barrier override thresholds allow legitimate topic changes to update the session state without needing artificially high confidence.
+- **Patient-Source Clinical Memory**: Symptoms, findings, imaging, and conditions are persisted only from patient raw queries and EyeCLIP inferences. Model-generated answers are prevented from writing these fields into session context.
 - **Localized Metadata**: Automates Anatomical Locality (Anterior/Posterior Segment) and Clinical Triage Priority (Emergency/Urgent) mapping based on AIOS/NPCB standards.
 
-### 4. Self-Correcting RAG Loop
+### 4. Deterministic Eye Anatomy Graph Guardrails
+- **Graph-RAG on Top of NER**: Existing medical NER is retained, and a deterministic eye anatomy graph layer resolves lay phrases (e.g., "black part" -> pupil, "colored part" -> iris, "white part" -> sclera/conjunctiva).
+- **Immutable Anatomy Facts Injection**: Verified anatomy facts are injected into generation prompts to reduce rudimentary structural hallucinations.
+- **Contradiction Gate**: A post-generation anatomy contradiction check rewrites or safely degrades responses if conflicts are detected (e.g., sclera described as black/colored).
+- **Comprehensive Anatomy Hierarchy**: Anterior segment, posterior segment, adnexa, layers, spaces, and disjoint structure rules are encoded in a machine-readable graph.
+
+### 5. Self-Correcting RAG Loop
 - **Grounding Verification**: Implements a dedicated verification turn to ensure every claim is supported by the retrieved clinical context, minimizing hallucinations.
 - **Thought-Bypass Optimization**: Uses `skip_thought` generation to achieve sub-second query refinement.
 
-### 5. Enriched Knowledge Base (6,100+ Articles)
+### 6. Enriched Knowledge Base (6,100+ Articles)
 - **Multi-Source Ingestion**: Automated pipeline (`scripts/fetch_articles.py`) fetches articles from 4 public APIs:
   - **PubMed** (4,741 peer-reviewed abstracts) · **EuropePMC** (774 open-access) · **Semantic Scholar** (534 cross-publisher) · **MedlinePlus** (51 consumer health)
 - **21 Clinical Categories**: Covering Diabetic Retinopathy, Glaucoma, Corneal Diseases, Neuro-Ophthalmology, Ocular Genetics, Community Eye Health, and more.
 - **India-Relevant**: Emphasis on conditions prevalent in Indian clinical practice — trachoma, fungal keratitis, ROP, vitamin A deficiency.
 - **Vector Corpus**: 21,635 child chunks across 8,855 parent documents (Kanski + Khurana textbooks + PubMed articles).
 
-### 6. Dual-Path Retrieval
+### 7. Dual-Path Retrieval
 When the requested number of retrieval sources (k) ≥ 5, the system uses a **dual-path strategy**:
 - **Path A** (k-2 slots): Refined/rewritten clinical query → textbook-grade precision.
 - **Path B** (2 slots): Raw patient query + session context → PubMed article breadth.
 
 This prevents over-technical query refinement from suppressing relevant research article hits.
+
+### 8. Scalable Corpus Processing
+- **External Resource Fetching**: Unified fetcher (`scripts/fetch_external_resources.py`) supports EyeWiki, PMC Open Access, EYE-lit, MedRAG, AAO PPP, StatPearls, Merck, and Wikipedia.
+- **Corpus Hygiene Controls**: Includes source-specific cleanup and relevance gating (e.g., stricter Wikipedia candidate screening, Merck boilerplate removal).
+- **Multi-GPU Chunking and Ingestion**: `scripts/chunk_data.py` and `scripts/ingest_db.py` support parallelized embedding/indexing workflows.
 
 ---
 
@@ -45,17 +59,24 @@ This prevents over-technical query refinement from suppressing relevant research
 
 ```mermaid
 graph TD
-    User([User Query + Image]) --> EyeCLIP[EyeCLIP Vision Agent]
-    EyeCLIP --> Refinement[Query Refiner MedGemma]
+  User([Voice/Text Query + Image]) --> Triage[Emergency Triage]
+  Triage -- Red Flag --> FinalAnswer([Patient-Friendly Response])
+  Triage -- Safe --> EyeCLIP[EyeCLIP Vision Agent]
+  User --> AnatomyGraph[Deterministic Eye Anatomy Graph]
+  EyeCLIP --> Refinement[Query Refiner MedGemma]
+  AnatomyGraph --> Refinement
     Refinement --> Retrieval{Hybrid Retriever}
     Retrieval --> BM25[BM25 Sparse Search]
     Retrieval --> MedEmbed[MedEmbed Dense Search]
     BM25 & MedEmbed --> Reranker[MedCPT Cross-Encoder Reranker]
     Reranker --> Generator[MedGemma Generation]
-    Generator --> Verification{Grounding Verifier}
+  AnatomyGraph --> Generator
+  Generator --> AnatomyGuard[Anatomy Contradiction Guard]
+  AnatomyGuard --> Verification{Grounding Verifier}
     Verification -- Fail --> Generator
     Verification -- Pass --> FinalAnswer([Patient-Friendly Response])
     FinalAnswer --> State[Clinical Session State]
+  AnatomyGraph --> State
     State --> Refinement
 ```
 
@@ -76,6 +97,11 @@ conda activate rag
 pip install -r requirements_clean.txt
 ```
 
+System dependency (required for ASR):
+```bash
+sudo apt-get update && sudo apt-get install -y ffmpeg
+```
+
 ### 2.1 Optional: Medical NER Upgrade (Recommended)
 To improve extraction for pathological/edge-case phrasing, install medical NER packages:
 ```bash
@@ -94,6 +120,19 @@ export LVP_MEDICAL_NER=1  # default (auto-detect medspaCy/spaCy backend)
 # export LVP_MEDICAL_NER=0  # disable medical NER and use rule+LLM extraction only
 ```
 
+
+### 2.2 Anatomy Graph Layer (New)
+The system now uses a deterministic anatomy graph at:
+- `data/knowledge_base/eye_anatomy_graph.json`
+
+This graph contains:
+- core eye hierarchy (anterior/posterior/adnexa)
+- lay synonym mappings (e.g., black/colored/white part phrasing)
+- immutable anatomy facts for prompt grounding
+- contradiction rules and disjoint structure checks
+
+No external graph database is required for the current implementation; this JSON-backed graph is loaded by `src/anatomy/knowledge_graph.py`.
+
 ### 3. Model Downloads
 This project requires specialized model weights. Place them in the `models/checkpoints/` directory:
 - `medgemma-1.5-4b-it`: The primary medical LLM processor.
@@ -102,25 +141,55 @@ This project requires specialized model weights. Place them in the `models/check
 - `eyeclip_visual_new.pt`: Fine-tuned EyeCLIP weights for ophthalmic vision tasks. (Download from [EyeCLIP Original Repo](https://github.com/Michi-3000/EyeCLIP))
 
 ### 4. Knowledge Base Ingestion
-1. **Fetch Articles** (optional — pre-built data included):
+1. **Fetch External Ophthalmic Resources (recommended, high coverage):**
+  ```bash
+  # Uses script defaults; control scope with explicit --max-* flags if needed
+  python scripts/fetch_external_resources.py
+  ```
+
+  Optional custom run:
+  ```bash
+  python scripts/fetch_external_resources.py \
+    --max-eye-lit 15000 \
+    --max-medrag 10000 \
+    --max-aao 80 \
+    --max-statpearls 450 \
+    --max-merck 120 \
+    --aao-pdf-pages 0
+  ```
+
+2. **Fetch PubMed/EuropePMC/Semantic Scholar/MedlinePlus Articles** (optional — pre-built data included):
    ```bash
    python scripts/fetch_articles.py                   # ~6000 articles
    python scripts/fetch_articles.py --max-per-query 10 # quick test
    ```
-2. **Chunk & Ingest**:
+3. **Chunk & Ingest**:
    ```bash
+  # Includes content-hash deduplication before persistence
    python scripts/chunk_data.py
    python scripts/ingest_db.py
    ```
-3. **Visual Embedding** (required for zero-shot vision features):
+4. **Visual Embedding** (required for zero-shot vision features):
    ```bash
    python scripts/embed_labels.py
    ```
+
+5. **Optional Corpus Sanitization and Parser Regression Checks**:
+  ```bash
+  python scripts/sanitize_external_corpus.py --dry-run
+  python scripts/sanitize_external_corpus.py
+  python scripts/parser_regression_check.py
+  ```
 
 ### 5. Run the Application
 ```bash
 streamlit run app/main.py
 ```
+
+Voice flow in UI:
+- Record from the built-in voice input widget.
+- Review/edit transcription.
+- Send as normal query into the same retrieval-generation pipeline.
 
 ---
 
@@ -199,7 +268,7 @@ Run: `conda run -n rag python evaluation/ablation_studies.py --max-questions 20`
 
 **🟢 Strategic**
 6. Add human-in-the-loop review for 20–30 incorrect predictions per cycle
-7. Add comprehensive test suite to validate pipeline components
+7. Expand beyond current safety/anatomy regression checks into full unit + integration pipeline tests
 
 ---
 
@@ -223,6 +292,9 @@ conda run -n rag python evaluation/failure_analysis.py
 
 # Safety regression for symptom-sign mapping (retrieval + generation constraints)
 conda run -n rag python evaluation/safety_mapping_regression.py
+
+# Anatomy graph regression (lay-term mapping + contradiction guards)
+conda run -n rag python evaluation/anatomy_graph_regression.py
 ```
 
 Results are saved to `evaluation/results/` as timestamped JSON + Markdown reports.
