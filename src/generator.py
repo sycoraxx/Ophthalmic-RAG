@@ -23,68 +23,24 @@ from PIL import Image as PILImage
 # Import session state components
 from src.state.clinical_session_state import ClinicalSessionState, ClinicalEntity, EntityType
 from src.state.clinical_entity_extractor import ClinicalEntityExtractor
+from src.state.entity_source_policy import (
+    clamp_confidence,
+    source_rank,
+    source_weight,
+)
 from src.anatomy import get_eye_anatomy_graph
+from src.generator_constants import (
+    FUNDUS_CONTEXT_PATTERNS,
+    INFLAMMATORY_FEATURE_PATTERNS,
+    MEDICAL_ACRONYMS,
+    POSTERIOR_SEGMENT_MISLEADING_TOKENS,
+    QUERY_NOISE_TOKENS,
+    SURFACE_LOCATION_PATTERNS,
+    SURFACE_SPOT_PATTERNS,
+    TOKEN_CANONICAL_MAP,
+)
 
 MEDGEMMA_MODEL = "./models/checkpoints/medgemma-1.5-4b-it"
-
-MEDICAL_ACRONYMS: set[str] = {
-    "amd", "iop", "oct", "cnv", "dme", "erm", "pvd", "iol", "rd", "cscr",
-    "faf", "ffa", "icga", "rpe", "onh", "pcv", "npdr", "pdr",
-}
-
-QUERY_NOISE_TOKENS: set[str] = {
-    "patient", "question", "questions", "query", "context", "prior", "output",
-    "rewrite", "rewritten", "keywords", "keyword", "clinical", "english",
-    "only", "standalone", "search", "terms", "term", "include", "using",
-    "what", "when", "where", "which", "this", "that", "there", "here",
-    "from", "with", "into", "also", "have", "has", "had", "your", "you",
-    "for", "and", "the", "to", "of", "is", "are", "be", "it",
-    "differential", "diagnosis",
-    "possible", "probable", "detected",
-}
-
-TOKEN_CANONICAL_MAP: Dict[str, str] = {
-    "retinal": "retina",
-    "macular": "macula",
-    "conjunctival": "conjunctiva",
-    "corneal": "cornea",
-    "lenticular": "lens",
-    "watering": "tear",
-    "tearing": "tear",
-}
-
-SURFACE_SPOT_PATTERNS: tuple[str, ...] = (
-    r"white\s+(spot|patch|dot|mark|opacity|ulcer|lesion|infiltrate)",
-    r"spot\s+on\s+(the\s+)?(black\s+part|front)\s+of\s+(the\s+)?eye",
-)
-
-SURFACE_LOCATION_PATTERNS: tuple[str, ...] = (
-    r"black\s+part\s+of\s+(the\s+)?eye",
-    r"front\s+of\s+(?:(?:the|my|your)\s+)?eye",
-    r"on\s+(?:(?:the|my|your)\s+)?(eye|cornea|iris|conjunctiva)",
-    r"cornea\w*|iris\w*|conjunctiva\w*",
-    r"see\s+(it\s+)?in\s+(the\s+)?mirror|visible\s+in\s+(the\s+)?mirror",
-)
-
-INFLAMMATORY_FEATURE_PATTERNS: tuple[str, ...] = (
-    r"red\w*",
-    r"water\w*|tear\w*",
-    r"pain\w*",
-    r"photophobia|light\s+sensitive|sensitivity\s+to\s+light|bright\s+light",
-    r"blur\w*\s+vision|vision\s+blur\w*",
-    r"discharge",
-)
-
-FUNDUS_CONTEXT_PATTERNS: tuple[str, ...] = (
-    r"fundus|fundoscopy|fundoscopy|ophthalmoscopy",
-    r"dilat(e|ed|ion|ing)\s+(exam|eye|pupil)",
-    r"retinal\s+photo|retina\s+photo|fundus\s+photo",
-    r"oct|ffa|fluorescein\s+angiography",
-)
-
-POSTERIOR_SEGMENT_MISLEADING_TOKENS: set[str] = {
-    "retina", "retinal", "fundus", "leukocoria", "roth", "roths", "vascular",
-}
 
 
 class MedGemmaGenerator:
@@ -582,6 +538,7 @@ class MedGemmaGenerator:
         visual_findings: Optional[str] = None,
         image_path: Optional[str] = None,
         recent_history: Optional[list] = None,
+        patient_memory_context: Optional[str] = None,
     ) -> str:
         """
         Rewrite a follow-up query into a standalone, retrieval-optimized query
@@ -593,6 +550,7 @@ class MedGemmaGenerator:
         """
         # Build context injection from session state
         state_context = session_state.to_query_context(include_provisional=True) if session_state else ""
+        memory_context = (patient_memory_context or "").strip()
         
         # Build EyeCLIP hint
         eyeclip_hint = ""
@@ -654,7 +612,8 @@ class MedGemmaGenerator:
             "Output: cataract surgery options IOL timing recovery"
         )
         
-        user_text = f"Context:{state_context}{eyeclip_hint}{anatomy_hint}{history_str}\nPatient: {current_query}"
+        memory_hint = f"\nPatient Memory:\n{memory_context}" if memory_context else ""
+        user_text = f"Context:{state_context}{eyeclip_hint}{anatomy_hint}{memory_hint}{history_str}\nPatient: {current_query}"
         user_content = self._build_multimodal_content(user_text, image_path)
         
         messages = [
@@ -789,10 +748,9 @@ class MedGemmaGenerator:
         contradiction_block = "\n".join(f"- {issue}" for issue in contradictions)
 
         system_prompt = (
-            "You are a clinical safety editor for ophthalmology answers.\n"
-            "Revise the draft answer to remove anatomy contradictions while preserving tone and useful advice.\n"
-            "Do not invent new diagnoses and do not contradict the verified anatomy facts.\n"
-            "Output ONLY the corrected final answer."
+            "You are a clinical safety editor. Revise the draft answer to remove anatomical contradictions while preserving the helpful tone and clinical advice. "
+            "Output ONLY the corrected final answer text. DO NOT include any critique, plan, headers, or explanation. "
+            "Your output must be the final patient-friendly text and nothing else."
         )
         user_prompt = (
             f"PATIENT QUESTION:\n{raw_query}\n\n"
@@ -834,12 +792,14 @@ class MedGemmaGenerator:
         raw_query: str,
         context_docs: list[Document],
         session_state: Optional[ClinicalSessionState] = None,  # NEW
+        patient_memory_context: Optional[str] = None,
         correction_context: Optional[str] = None,
         patient_profile: Optional[dict] = None,
         recent_history: Optional[list] = None,
         visual_findings: Optional[str] = None,
         image_path: Optional[str] = None,
         target_language: str = "English",
+        concise_mode: bool = False,
     ) -> str:
         """
         Generate a patient-friendly answer from retrieved context documents.
@@ -856,6 +816,10 @@ class MedGemmaGenerator:
             state_context = session_state.to_generation_context(include_provisional=True)
             if state_context:
                 state_block = f"\nCLINICAL CONTEXT FROM PRIOR CONVERSATION:\n{state_context}\n\n"
+
+        patient_memory_block = ""
+        if patient_memory_context:
+            patient_memory_block = f"\n{patient_memory_context}\n\n"
 
         anatomy_graph = self._get_anatomy_graph()
         anatomy_facts = anatomy_graph.grounding_facts_for_query(raw_query, max_facts=4)
@@ -881,6 +845,16 @@ class MedGemmaGenerator:
         has_surface_visible_pattern = mapping["has_spot"] and mapping["has_surface_location"]
         has_fundus_context = mapping["has_fundus_context"]
         
+        length_and_style_rule = (
+            "6. Keep answer concise (150-250 words).\n"
+        )
+        if concise_mode:
+            length_and_style_rule = (
+                "6. EVALUATION CONCISE MODE: Keep the answer short and direct (40-90 words).\n"
+                "6a. If the question includes options, start with 'Final choice: <A/B/C/D>' and then a one-line rationale.\n"
+                "6b. Avoid conversational filler and long counseling unless urgent safety risk is present.\n"
+            )
+
         base_rules = (
             "RULES:\n"
             "1. Use simple, everyday language. Explain medical terms clearly.\n"
@@ -895,7 +869,7 @@ class MedGemmaGenerator:
             "'The available medical references don't specifically address this point. "
             "Please consult your ophthalmologist for a definitive answer.' "
             "Do NOT fill in from general medical knowledge. Do NOT guess.\n"
-            "6. Keep answer concise (150-250 words).\n"
+            f"{length_and_style_rule}"
             "7. If CLINICAL CONTEXT is provided, personalize advice accordingly.\n"
             "8. Maintain continuity with prior conversation topics.\n"
             "9. If VISUAL FINDINGS are provided, use them as supporting evidence "
@@ -941,6 +915,14 @@ class MedGemmaGenerator:
             base_rules += (
                 f"17. TRANSLATION REQUIRED: Write ENTIRE response in {target_language}.\n"
             )
+
+        base_rules += (
+            "18. MANDATORY RESPONSE FORMAT: You MUST structure your answer into two distinct sections separated by '---DETAILS---' on its own line.\n"
+            "   - Section 1: A brief (1-2 sentences) reassuring and actionable summary that directly addresses the patient's main concern. (e.g., 'It's very rare to go blind if you follow regular checkups and manage your health.')\n"
+            "   - Section 2: The marker '---DETAILS---' on its own line.\n"
+            "   - Section 3: The full clinical explanation, safety advice, and source-grounded details.\n"
+            "CRITICAL: Do NOT include section headers like 'Summary:' or 'Details:' as the UI handles these. Avoid using square brackets around your text.\n"
+        )
         
         if correction_context:
             system_prompt = (
@@ -965,6 +947,7 @@ class MedGemmaGenerator:
         text_content = (
             f"{history_block}"
             f"{state_block}"
+            f"{patient_memory_block}"
             f"PATIENT'S QUESTION:\n{raw_query}"
             f"{vision_block}"
             f"MEDICAL REFERENCE TEXTS:\n\n{context_block}"
@@ -1093,12 +1076,22 @@ class MedGemmaGenerator:
 
         merged: Dict[tuple, ClinicalEntity] = {}
         for entity in patient_entities + answer_entities:
+            # Source-aware weighting keeps patient-origin evidence dominant.
+            entity.confidence = clamp_confidence(entity.confidence * source_weight(entity.source))
             key = ((entity.normalized or entity.text.lower()), entity.entity_type)
             prev = merged.get(key)
-            if prev is None or entity.confidence > prev.confidence:
+            if prev is None:
                 merged[key] = entity
-            elif prev is not None:
-                prev.confidence = max(prev.confidence, entity.confidence)
+                continue
+
+            candidate_rank = source_rank(entity.source)
+            prev_rank = source_rank(prev.source)
+            if candidate_rank > prev_rank:
+                merged[key] = entity
+            elif candidate_rank == prev_rank and entity.confidence > prev.confidence:
+                merged[key] = entity
+            else:
+                prev.confidence = clamp_confidence(max(prev.confidence, entity.confidence))
 
         return list(merged.values())
 
@@ -1112,8 +1105,6 @@ class MedGemmaGenerator:
         method: str = "nli"
     ) -> dict:
         """Verify factual claims in the answer against context using the specified method."""
-        if method == "generative":
-            return self._verify_grounding_generative(answer, context_block, query_anatomy, verbose)
         return self._verify_grounding_nli(answer, context_block, query_anatomy, verbose)
 
     def _verify_grounding_nli(
@@ -1225,88 +1216,6 @@ class MedGemmaGenerator:
                 "anatomy_mismatch": "Unknown",
                 "reasoning": str(e)
             }
-
-    def _verify_grounding_generative(
-        self, 
-        answer: str, 
-        context_block: str, 
-        query_anatomy: Optional[set] = None,
-        verbose: bool = True
-    ) -> dict:
-        """Verify factual claims in the answer against context + check anatomy using MedGemma."""
-        system_prompt = (
-            "You are a medical fact-checker with anatomical expertise. You will receive:\n"
-            "  1. A PATIENT ANSWER\n"
-            "  2. The SOURCE TEXTS used\n"
-            "  3. The QUERY ANATOMY (which eye structure the question is about)\n\n"
-            "Your job:\n"
-            "1. Verify EVERY factual claim is supported by source texts.\n"
-            "2. Verify the answer discusses the same anatomy as the query.\n"
-            "3. Flag any claims that:\n"
-            "   - Are not in the sources\n"
-            "   - Discuss a different anatomical structure than the query\n"
-            "   - Invent source citations not present in context\n\n"
-            "OUTPUT FORMAT (strictly follow):\n"
-            "VERDICT: PASS or FAIL\n"
-            "FLAGGED CLAIMS:\n"
-            "- [claim 1]\n"
-            "ANATOMY MISMATCH: [Yes/No + brief explanation]\n"
-            "REASONING: [1-2 sentences]"
-        )
-
-        anatomy_note = f"\n\nQUERY ANATOMY: {query_anatomy}" if query_anatomy else ""
-        user_message = f"PATIENT ANSWER:\n{answer}\n\nSOURCE TEXTS:\n{context_block}{anatomy_note}"
-        
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ]
-
-        response = self._generate(
-            messages,
-            max_new_tokens=256,
-            temperature=0.1,
-            repetition_penalty=1.3,
-        )
-
-        return self._parse_grounding_response(response, verbose)
-
-    def _parse_grounding_response(self, response: str, verbose: bool) -> dict:
-        verdict = "PASS"
-        flagged_claims = []
-        anatomy_mismatch = "No"
-        reasoning = ""
-
-        for line in response.split("\n"):
-            line = line.strip()
-            if line.upper().startswith("VERDICT:"):
-                v = line.split(":", 1)[1].strip().upper()
-                verdict = "FAIL" if "FAIL" in v else "PASS"
-            elif line.startswith("- ") and verdict == "FAIL":
-                claim = line[2:].strip()
-                if claim.lower() != "none" and len(claim) > 5:
-                    flagged_claims.append(claim)
-            elif line.upper().startswith("ANATOMY MISMATCH:"):
-                anatomy_mismatch = line.split(":", 1)[1].strip()
-            elif line.upper().startswith("REASONING:"):
-                reasoning = line.split(":", 1)[1].strip()
-
-        if flagged_claims and verdict == "PASS":
-            verdict = "FAIL"
-
-        if verbose:
-            print(f"[Grounding Gen] Verdict: {verdict}")
-            for claim in flagged_claims:
-                print(f"  ⚠️  Flagged: {claim}")
-            print(f"[Grounding Gen] Anatomy mismatch: {anatomy_mismatch}")
-            print(f"[Grounding Gen] Reasoning: {reasoning}")
-
-        return {
-            "verdict": verdict,
-            "flagged_claims": flagged_claims,
-            "anatomy_mismatch": anatomy_mismatch,
-            "reasoning": reasoning,
-        }
 
     # ── Modality Detection (unchanged from original) ─────────────────────────
     VALID_MODALITIES = {

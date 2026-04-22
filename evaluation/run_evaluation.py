@@ -72,6 +72,8 @@ def run_single(
     k: int = 3,
     retrieval_only: bool = False,
     run_llm_judge: bool = True,
+    concise_mode: bool = False,
+    retrieval_query_mode: str = "refined",
 ) -> Dict[str, Any]:
     """Run the pipeline on one question and return all metrics."""
     from evaluation.metrics import retrieval_metrics
@@ -90,22 +92,40 @@ def run_single(
         "category": entry["category"],
         "question": question,
         "topic": entry["topic"],
+        "raw_query": full_question,
+        "retrieval_query_mode": retrieval_query_mode,
     }
 
     t0 = time.time()
 
-    # ── Step 1: Query refinement ─────────────────────────────────────────────
-    try:
-        refined_query = engine.refine_query(full_question)
-    except Exception as e:
-        refined_query = full_question
-        result["refine_error"] = str(e)
+    # ── Step 1: Query refinement (optional for diagnostics) ─────────────────
+    refined_query: Optional[str] = None
+    if retrieval_query_mode == "refined":
+        try:
+            refined_query = engine.refine_query(full_question)
+        except Exception as e:
+            refined_query = full_question
+            result["refine_error"] = str(e)
 
     result["refined_query"] = refined_query
 
+    # Choose retrieval query mode for root-cause analysis.
+    if retrieval_query_mode == "raw-normalized":
+        raw_norm = engine.generator.normalize_retrieval_query(full_question, max_terms=18)
+        retrieval_query = raw_norm if raw_norm else full_question
+        retrieval_query = engine.generator.apply_symptom_sign_mapping_to_query(
+            raw_query=full_question,
+            candidate_query=retrieval_query,
+            max_terms=18,
+        )
+    else:
+        retrieval_query = refined_query if refined_query else full_question
+
+    result["retrieval_query"] = retrieval_query
+
     # ── Step 2: Retrieval ────────────────────────────────────────────────────
     try:
-        retrieved_docs = engine.retriever.search(refined_query, k=k, verbose=False)
+        retrieved_docs = engine.retriever.search(retrieval_query, k=k, verbose=False)
     except Exception as e:
         retrieved_docs = []
         result["retrieval_error"] = str(e)
@@ -132,6 +152,7 @@ def run_single(
         answer = engine.generator.generate_answer(
             raw_query=full_question,
             context_docs=retrieved_docs,
+            concise_mode=concise_mode,
         )
         result["answer"] = answer
     except Exception as e:
@@ -225,6 +246,18 @@ def main():
     parser.add_argument("--retrieval-only", action="store_true")
     parser.add_argument("--no-llm-judge", action="store_true")
     parser.add_argument("--k", type=int, default=3)
+    parser.add_argument(
+        "--retrieval-query-mode",
+        type=str,
+        default="refined",
+        choices=["refined", "raw-normalized"],
+        help="Use refined query (default) or raw-normalized query for retrieval diagnostics",
+    )
+    parser.add_argument(
+        "--concise-mode",
+        action="store_true",
+        help="Evaluation-only concise generation mode for scoring-oriented outputs",
+    )
     parser.add_argument("--max-questions", type=int, default=None)
     parser.add_argument("--output-dir", type=str, default=str(RESULTS_DIR))
     parser.add_argument("--gpus", type=str, default=None)
@@ -248,6 +281,9 @@ def main():
     print(f"\n{'='*60}")
     print(f"  Ophthalmic RAG Evaluation — {len(questions)} questions")
     print(f"  k={args.k}  retrieval_only={args.retrieval_only}")
+    print(
+        f"  retrieval_query_mode={args.retrieval_query_mode}  concise_mode={args.concise_mode}"
+    )
     print(f"{'='*60}\n")
 
     # Load engine
@@ -265,6 +301,8 @@ def main():
                 k=args.k,
                 retrieval_only=args.retrieval_only,
                 run_llm_judge=not args.no_llm_judge,
+                concise_mode=args.concise_mode,
+                retrieval_query_mode=args.retrieval_query_mode,
             )
         except Exception as e:
             r = {"id": entry["id"], "error": str(e)}

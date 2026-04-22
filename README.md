@@ -22,6 +22,7 @@ A self-correcting, multimodal RAG (Retrieval-Augmented Generation) pipeline spec
 - **Smart Topic Drift Detection**: Vague follow-up queries (e.g., "what to do now?") correctly inherit the established clinical topic, preventing false session resets. Anatomy-aware mapping bridges conditions to structures (e.g., "cataract" ↔ "lens").
 - **Adaptive Context Thresholds**: Low-barrier override thresholds allow legitimate topic changes to update the session state without needing artificially high confidence.
 - **Patient-Source Clinical Memory**: Symptoms, findings, imaging, and conditions are persisted only from patient raw queries and EyeCLIP inferences. Model-generated answers are prevented from writing these fields into session context.
+- **MemPalace Longitudinal Memory (New)**: Patient-specific memory can be persisted in a MemPalace-backed local palace using `wing=patient_id` and anatomy rooms for retrieval-time navigation across visits.
 - **Localized Metadata**: Automates Anatomical Locality (Anterior/Posterior Segment) and Clinical Triage Priority (Emergency/Urgent) mapping based on AIOS/NPCB standards.
 
 ### 4. Deterministic Eye Anatomy Graph Guardrails
@@ -101,6 +102,30 @@ System dependency (required for ASR):
 ```bash
 sudo apt-get update && sudo apt-get install -y ffmpeg
 ```
+
+### 2.0 Longitudinal Memory Backend (MemPalace)
+`requirements_clean.txt` now includes `mempalace` for patient memory persistence.
+
+Optional runtime config (`config.json`) to control backend:
+```json
+{
+  "patient_memory": {
+    "enabled": true,
+    "backend": "mempalace",
+    "palace_path": "./data/sessions/mempalace_palace",
+    "enable_kg": true,
+    "sqlite_path": "./data/sessions/patient_memory.sqlite"
+  }
+}
+```
+
+Notes:
+- `backend: "mempalace"` is preferred and used by default.
+- If MemPalace initialization fails, the engine automatically falls back to the SQLite memory store.
+- In environments with older system SQLite, install `pysqlite3-binary` (already in `requirements_clean.txt`) so Chroma-based MemPalace modules can initialize.
+- The Streamlit sidebar now includes a backend toggle so you can switch between `mempalace` and `sqlite` without editing code.
+- For a direct comparison on follow-up cases, run `python evaluation/longitudinal_memory_evaluation.py`.
+- Each accepted memory write also emits a sanitized clinician summary JSON under `data/sessions/clinician_exports/` with a `conversation_date` field for the current turn.
 
 ### 2.1 Optional: Medical NER Upgrade (Recommended)
 To improve extraction for pathological/edge-case phrasing, install medical NER packages:

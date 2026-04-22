@@ -1,0 +1,9 @@
+{
+  "patient_memory": {
+    "enabled": true,
+    "backend": "mempalace",
+    "palace_path": "./data/sessions/mempalace_palace",
+    "sqlite_path": "./data/sessions/patient_memory.sqlite",
+    "enable_kg": true
+  }
+}

@@ -18,6 +18,8 @@ The QueryEngine is loaded ONCE and cached in the Streamlit session.
 import sys
 import os
 import argparse
+import json
+import re
 
 # ─── GPU Selection ────────────────────────────────────────────────────────────
 # Must happen before QueryEngine is imported
@@ -231,24 +233,157 @@ st.markdown("""
 
 # ─── Load Engine (Global Cached Singleton) ───────────────────────────────────
 @st.cache_resource(show_spinner=False)
-def _load_engine_cached():
+def _load_engine_cached(patient_memory_backend: str | None):
     """Load QueryEngine strictly once per server instance."""
     from src.engine import QueryEngine
     print("[Main] 🚀 Starting global QueryEngine warm start...")
-    engine = QueryEngine()
+    engine = QueryEngine(patient_memory_backend=patient_memory_backend)
     print("[Main] ✓ Global QueryEngine warm start complete.")
     return engine
 
 
-def get_engine():
+def get_engine(patient_memory_backend: str | None = None):
     """Proxy to get engine, with a UI spinner if it's currently loading."""
-    if "engine" in st.session_state:
+    # Ensure consistent default with engine.py and sidebar radio to avoid cache misses
+    requested_backend = (patient_memory_backend or "mempalace").strip().lower()
+    current_backend = st.session_state.get("engine_patient_memory_backend")
+    if "engine" in st.session_state and current_backend == requested_backend:
         return st.session_state.engine
 
+    if "engine" in st.session_state:
+        st.session_state.pop("engine", None)
+        st.session_state.pop("engine_patient_memory_backend", None)
+
     with st.spinner("Loading RAG engine (models, indexes)... This takes ~60s on first load."):
-        engine = _load_engine_cached()
+        engine = _load_engine_cached(requested_backend)
         st.session_state.engine = engine
+        st.session_state.engine_patient_memory_backend = getattr(engine, "patient_memory_backend", requested_backend)
         return engine
+
+
+def _render_split_response(content: str):
+    """Render a response that may be split by ---DETAILS--- marker."""
+    # Search for marker case-insensitively
+    marker_pattern = re.compile(r"---DETAILS---", re.IGNORECASE)
+    match = marker_pattern.search(content)
+    
+    if match:
+        start, end = match.span()
+        summary = content[:start].strip()
+        details = content[end:].strip()
+
+        # Clean up common model prefixes (Summary, Response, Section 1, etc.)
+        summary = re.sub(r"^(Response|Summary|Clinical Summary|summary|Result|Assistant|Section \d+):\s*", "", summary, flags=re.I).strip()
+        # Handle if "summary" or "Section 1" is just a loose phrase at the start
+        summary = re.sub(r"^(summary|Section \d+)\s+", "", summary, flags=re.I).strip()
+        
+        # Strip accidental brackets [...]
+        summary = summary.strip("[]").strip()
+        details = details.strip("[]").strip()
+        
+        # Clean up details prefixes too
+        details = re.sub(r"^(Detailed Explanation|Details|details|Section \d+):\s*", "", details, flags=re.I).strip()
+        details = re.sub(r"^Section \d+\s*", "", details, flags=re.I).strip()
+
+        st.markdown(f"**Summary:** {summary}")
+        with st.expander("🔍 Show clinical details & advice", expanded=False):
+            st.markdown(details)
+    else:
+        st.markdown(content)
+
+
+def _render_physician_dashboard(engine, session_id, patient_id):
+    """Render a high-level overview for clinicians."""
+    st.markdown("### 🏥 Physician Dashboard")
+    
+    if not patient_id:
+        st.warning("No Patient ID provided. Longitudinal memory is unavailable.")
+        return
+
+    try:
+        session_info = engine.get_session_info(session_id, patient_id=patient_id)
+        if not session_info:
+            st.info("No session data available.")
+            return
+
+        summary = session_info.get("clinician_summary")
+        if not summary:
+            st.info("No clinician summary generated yet.")
+            return
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Loci", len(summary.get("recent_memory_loci", [])))
+        with col2:
+            st.metric("Problem Count", len(summary.get("active_problem_list", [])))
+
+        if summary.get("active_problem_list"):
+            st.markdown("**Active Problem List:**")
+            for p in summary["active_problem_list"]:
+                st.markdown(f"- {p}")
+        
+        if summary.get("current_symptoms"):
+            st.markdown("**Reported Symptoms:**")
+            st.markdown(", ".join(summary["current_symptoms"]))
+
+        if summary.get("recent_memory_loci"):
+            with st.expander("📜 Recent Longitudinal Records", expanded=False):
+                for loci in summary["recent_memory_loci"][:5]:
+                    date = loci.get("created_at", "Unknown Date")[:10]
+                    st.markdown(f"**{date}** | {loci.get('entity_type')}: {loci.get('value')} ({loci.get('room')})")
+
+        st.divider()
+        st.download_button(
+            "📄 Export Clinical Summary (JSON)",
+            data=json.dumps(summary, indent=2),
+            file_name=f"clinician_summary_{patient_id}_{session_id[:8]}.json",
+            mime="application/json",
+            use_container_width=True
+        )
+
+    except Exception as e:
+        st.error(f"Error loading physician dashboard: {e}")
+
+
+def _render_clinician_summary_export(pipeline_data: dict):
+    export_path = pipeline_data.get("clinician_summary_path")
+    if not export_path:
+        return
+
+    path = Path(export_path)
+    st.markdown("**Clinician Summary Export:**")
+    if path.exists():
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            st.caption(f"Conversation date: {payload.get('conversation_date', '—')}")
+            st.caption(f"Generated at: {payload.get('generated_at', '—')}")
+            if payload.get("active_problem_list"):
+                st.markdown(f"**Problem List:** {', '.join(payload['active_problem_list'])}")
+            if payload.get("current_symptoms"):
+                st.markdown(f"**Symptoms:** {', '.join(payload['current_symptoms'])}")
+            if payload.get("current_findings"):
+                st.markdown(f"**Findings:** {', '.join(payload['current_findings'])}")
+            st.download_button(
+                "Download clinician summary JSON",
+                data=path.read_bytes(),
+                file_name=path.name,
+                mime="application/json",
+                use_container_width=True,
+            )
+        except Exception as e:
+            st.caption(f"Clinician summary unavailable: {e}")
+    else:
+        st.caption(f"Summary file not found: {path}")
+
+
+def _save_uploaded_image(uploaded_file) -> str | None:
+    """Save uploaded file to /tmp and return the path, or None."""
+    if uploaded_file is None:
+        return None
+    image_path = f"/tmp/eyeclip_{uuid.uuid4().hex[:8]}_{uploaded_file.name}"
+    with open(image_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    return image_path
 
 
 
@@ -326,6 +461,20 @@ with st.sidebar:
         "Location", key="pf_location",
         placeholder="e.g. Delhi, India",
     )
+    patient_record_id = st.text_input(
+        "Patient ID (for longitudinal memory)",
+        key="pf_patient_id",
+        placeholder="e.g. LVPEI-000123",
+        help="If provided, the assistant can retrieve and update patient-specific memory across sessions.",
+    )
+    patient_memory_backend = st.radio(
+        "Patient memory backend",
+        ["mempalace", "sqlite"],
+        index=0 if st.session_state.get("engine_patient_memory_backend", "mempalace") == "mempalace" else 1,
+        horizontal=True,
+        help="Switch between the MemPalace palace backend and the SQLite fallback store.",
+        key="pf_patient_memory_backend",
+    )
 
     st.divider()
     
@@ -335,23 +484,14 @@ with st.sidebar:
         with st.expander("🔐 Session Info", expanded=False):
             st.code(f"Session: {session_id[:8]}...", language="text")
 
+
+
             try:
-                engine = get_engine()
-                session_info = engine.get_session_info(session_id)
-                if session_info:
-                    st.markdown(f"**Turns:** {session_info['turns']}")
-                    if session_info.get("anatomy"):
-                        st.markdown(f"**Anatomy:** {session_info['anatomy']}")
-                    if session_info.get("condition"):
-                        st.markdown(f"**Condition:** {session_info['condition']}")
-                    if session_info.get("context"):
-                        st.markdown(f"**Retrieval Context:** `{session_info['context']}`")
-                    session_json = session_info.get("session_json")
-                    #if session_json:
-                        #st.markdown("**Clinical Session JSON:**")
-                        #st.json(session_json)
+                engine = get_engine(patient_memory_backend)
+                # Use the new physician dashboard helper
+                _render_physician_dashboard(engine, session_id, patient_record_id)
             except Exception as e:
-                st.caption(f"Session info unavailable: {e}")
+                st.caption(f"Physician dashboard unavailable: {e}")
     
     st.divider()
 
@@ -395,6 +535,11 @@ def _get_patient_profile() -> dict | None:
     if not any(profile.values()):
         return None
     return profile
+
+
+def _get_patient_id() -> str | None:
+    pid = (patient_record_id or "").strip()
+    return pid if pid else None
 
 
 def _render_pipeline(pipeline_data: dict):
@@ -448,15 +593,7 @@ def _render_pipeline(pipeline_data: dict):
         for claim in pipeline_data["flagged_claims"]:
             st.markdown(f"- {claim}")
 
-
-def _save_uploaded_image(uploaded_file) -> str | None:
-    """Save uploaded file to /tmp and return the path, or None."""
-    if uploaded_file is None:
-        return None
-    image_path = f"/tmp/eyeclip_{uuid.uuid4().hex[:8]}_{uploaded_file.name}"
-    with open(image_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    return image_path
+    _render_clinician_summary_export(pipeline_data)
 
 
 # ─── Chat State ───────────────────────────────────────────────────────────────
@@ -483,7 +620,9 @@ for msg in st.session_state.messages:
                 '<span class="pipeline-step step-asr">🎙️ Voice Input</span>',
                 unsafe_allow_html=True,
             )
-        st.markdown(msg["content"], unsafe_allow_html=True)
+            st.markdown(msg["content"], unsafe_allow_html=True)
+        else:
+            _render_split_response(msg["content"])
         
         if msg["role"] == "assistant" and "pipeline" in msg and show_pipeline:
             with st.expander("🔍 Pipeline Details", expanded=False):
@@ -588,7 +727,7 @@ if "voice_transcription" in st.session_state and st.session_state["voice_transcr
         st.session_state.pop("voice_asr_meta", None)
         st.rerun()
 
-    if send_voice and edited_text.strip():
+    if send_voice and edited_text and edited_text.strip():
         # Store the query to process below (same path as typed input)
         st.session_state["_pending_voice_query"] = edited_text.strip()
         st.session_state["_pending_voice_meta"] = asr_meta
@@ -653,7 +792,7 @@ if prompt:
         st.markdown(prompt)
 
     # Load engine
-    engine = get_engine()
+    engine = get_engine(patient_memory_backend)
     
     # Get session_id if tracking enabled
     session_id = _get_or_init_session_id() if enable_session_tracking else None
@@ -676,6 +815,7 @@ if prompt:
             k=num_sources,
             verbose=False,
             session_id=session_id,
+            patient_id=_get_patient_id(),
             recent_history=recent_queries if enable_session_tracking else None,
             patient_profile=_get_patient_profile(),
             fast_mode=fast_mode,
@@ -703,6 +843,10 @@ if prompt:
         # Inject ASR metadata into pipeline data if from voice
         if from_voice and pending_voice_meta:
             pipeline_data.update(pending_voice_meta)
+
+        # Render split response
+        _render_split_response(answer)
+        
 
         elapsed = pipeline_data.get("time", time.time() - start_time)
 
@@ -755,13 +899,13 @@ if prompt:
                 unsafe_allow_html=True,
             )
 
-        # Display answer
-        st.markdown(answer)
 
         # Show pipeline details
         if show_pipeline:
             with st.expander("🔍 Pipeline Details", expanded=False):
                 _render_pipeline(pipeline_data)
+
+        _render_clinician_summary_export(pipeline_data)
 
     # Save to history
     st.session_state.messages.append({

@@ -36,3 +36,7 @@ scispacy>=0.5.4
 
 # Speech/ASR
 faster-whisper>=1.0.0
+
+# Longitudinal Memory Framework
+mempalace>=3.3.0
+pysqlite3-binary>=0.5.4

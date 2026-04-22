@@ -10,16 +10,41 @@ Models:
 """
 
 import pickle
+import sqlite3
+import sys
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
 from langchain.retrievers import EnsembleRetriever
 from langchain_core.documents import Document
 
 MEDEMBED_MODEL   = "abhinand/MedEmbed-large-v0.1"
 RERANKER_MODEL   = "ncbi/MedCPT-Cross-Encoder"
 CHROMA_DB_PATH   = "./data/vectorstore/ophthalmology_db"
+
+
+def _sqlite_version_tuple() -> tuple[int, int, int]:
+    raw = sqlite3.sqlite_version
+    parts = raw.split(".")
+    padded = (parts + ["0", "0", "0"])[:3]
+    try:
+        return int(padded[0]), int(padded[1]), int(padded[2])
+    except Exception:
+        return 0, 0, 0
+
+
+def _ensure_sqlite_compat(min_version: tuple[int, int, int] = (3, 35, 0)) -> bool:
+    """Patch stdlib sqlite3 with pysqlite3 when runtime SQLite is too old for Chroma."""
+    if _sqlite_version_tuple() >= min_version:
+        return True
+
+    try:
+        import pysqlite3  # type: ignore
+
+        sys.modules["sqlite3"] = pysqlite3
+        return True
+    except Exception:
+        return False
 
 
 class RetinaRetriever:
@@ -43,6 +68,11 @@ class RetinaRetriever:
 
     def _load_retriever(self):
         print(f"Loading MedEmbed ({MEDEMBED_MODEL}) + ChromaDB dense retriever...")
+        if not _ensure_sqlite_compat():
+            raise RuntimeError("sqlite3 >= 3.35 is required for Chroma; install pysqlite3-binary")
+
+        from langchain_community.vectorstores import Chroma
+
         embed_device = "cuda:0" if torch.cuda.is_available() else "cpu"
         med_embeddings = HuggingFaceEmbeddings(
             model_name=MEDEMBED_MODEL,

@@ -21,6 +21,7 @@ import os
 import uuid
 import time
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple, List, Union, Any
 
@@ -36,6 +37,8 @@ from src.triage import check_red_flags
 # NEW: Import session state components
 from src.state.clinical_session_state import ClinicalSessionState
 from src.state.clinical_entity_extractor import ClinicalEntity, EntityType
+from src.state.mempalace_patient_memory_store import MemPalacePatientMemoryStore
+from src.state.patient_memory_store import PatientMemoryStore
 
 # ASR (speech-to-text)
 from src.speech.speech_recognizer import SpeechRecognizer, TranscriptionResult
@@ -43,6 +46,8 @@ from src.speech.speech_recognizer import SpeechRecognizer, TranscriptionResult
 MAX_CORRECTION_RETRIES = 1
 SESSION_DIR = Path("./data/sessions")
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
+PATIENT_MEMORY_DB_PATH = "./data/sessions/patient_memory.sqlite"
+MEMPALACE_PATIENT_MEMORY_PATH = "./data/sessions/mempalace_palace"
 
 
 class QueryEngine:
@@ -52,7 +57,12 @@ class QueryEngine:
     and EyeCLIP-integrated entity extraction.
     """
 
-    def __init__(self, enable_session_state: bool = True, config_path: str = "config.json"):
+    def __init__(
+        self,
+        enable_session_state: bool = True,
+        config_path: str = "config.json",
+        patient_memory_backend: Optional[str] = None,
+    ):
         self.retriever = RetinaRetriever()
         self.generator = MedGemmaGenerator()
         self.enable_session_state = enable_session_state
@@ -67,6 +77,44 @@ class QueryEngine:
                 print(f"[QueryEngine] Loaded config from {config_path}")
             except Exception as e:
                 print(f"[QueryEngine] ⚠ Failed to load config {config_path}: {e}")
+
+        patient_memory_cfg = self.config.get("patient_memory", {}) if isinstance(self.config, dict) else {}
+        memory_enabled = bool(patient_memory_cfg.get("enabled", True))
+        memory_backend = str(patient_memory_cfg.get("backend", "mempalace")).strip().lower()
+        if patient_memory_backend:
+            memory_backend = str(patient_memory_backend).strip().lower()
+
+        self.patient_memory_store = None
+        self.patient_memory_backend = memory_backend
+        self.patient_memory_requested_backend = memory_backend
+        self.patient_memory_enabled = memory_enabled
+        if memory_backend == "mempalace":
+            palace_path = str(patient_memory_cfg.get("palace_path", MEMPALACE_PATIENT_MEMORY_PATH))
+            try:
+                self.patient_memory_store = MemPalacePatientMemoryStore(
+                    palace_path=palace_path,
+                    enabled=memory_enabled,
+                    enable_kg=bool(patient_memory_cfg.get("enable_kg", True)),
+                )
+                if memory_enabled:
+                    print(f"[QueryEngine] ✓ MemPalace patient memory ready ({palace_path}).")
+                else:
+                    print("[QueryEngine] ℹ MemPalace patient memory disabled by config.")
+            except Exception as e:
+                sqlite_path = str(patient_memory_cfg.get("sqlite_path", PATIENT_MEMORY_DB_PATH))
+                print(f"[QueryEngine] ⚠ MemPalace init failed ({e}). Falling back to SQLite memory store.")
+                self.patient_memory_store = PatientMemoryStore(db_path=sqlite_path, enabled=memory_enabled)
+                self.patient_memory_backend = "sqlite"
+                if memory_enabled:
+                    print(f"[QueryEngine] ✓ SQLite fallback patient memory ready ({sqlite_path}).")
+        else:
+            sqlite_path = str(patient_memory_cfg.get("sqlite_path", PATIENT_MEMORY_DB_PATH))
+            self.patient_memory_store = PatientMemoryStore(db_path=sqlite_path, enabled=memory_enabled)
+            self.patient_memory_backend = "sqlite"
+            if memory_enabled:
+                print(f"[QueryEngine] ✓ SQLite patient memory ready ({sqlite_path}).")
+            else:
+                print("[QueryEngine] ℹ SQLite patient memory disabled by config.")
         
         # In-memory session cache (persists across calls, cleared on restart)
         self._active_sessions: dict[str, ClinicalSessionState] = {}
@@ -264,12 +312,16 @@ class QueryEngine:
         refined_query: str,
         session: Optional[ClinicalSessionState],
         recent_queries: Optional[List[str]],
+        memory_terms: Optional[str] = None,
     ) -> str:
         """
         Compose a rerank query robust for short follow-ups:
         current utterance + stable session terms + last substantive user query + compact refined terms.
         """
         signals: List[str] = [prompt]
+
+        if memory_terms:
+            signals.insert(0, memory_terms)
 
         if session is not None and session.has_context(threshold=0.3, include_provisional=True):
             session_terms = session.to_query_terms(include_provisional=True)
@@ -328,6 +380,7 @@ class QueryEngine:
         k: int = 3,
         verbose: bool = True,
         session_id: Optional[str] = None,
+        patient_id: Optional[str] = None,
         recent_history: Optional[List[str]] = None,
         patient_profile: Optional[dict] = None,
         fast_mode: bool = False,
@@ -343,6 +396,7 @@ class QueryEngine:
             k: Number of documents to retrieve
             verbose: Print debug info
             session_id: Optional session identifier for conversation continuity
+            patient_id: Optional patient identifier for longitudinal memory
             recent_history: List of prior user queries (for generation context)
             patient_profile: Optional dict with patient demographics/conditions
         
@@ -354,6 +408,7 @@ class QueryEngine:
         """
         request_session_id = session_id
         session_enabled = self.enable_session_state if use_session_state is None else bool(use_session_state)
+        normalized_patient_id = (patient_id or "").strip()
 
         trace: dict[str, Any] = {
             "num_sources": 0,
@@ -400,6 +455,9 @@ class QueryEngine:
             session_id = session.session_id
             self._active_sessions[session_id] = session
 
+        patient_memory_terms = ""
+        patient_memory_block = ""
+
         # ── Step 0: Vision Analysis (optional) ───────────────────────────────
         visual_findings = None
         if image_path:
@@ -416,6 +474,23 @@ class QueryEngine:
                 session.reset_for_new_image()
                 if verbose:
                     print("[QueryEngine] 🔄 Cleared old image context for new image")
+
+        if normalized_patient_id and self.patient_memory_store.enabled:
+            memory_ctx = self.patient_memory_store.fetch_context(
+                patient_id=normalized_patient_id,
+                query_text=raw_query,
+                session_state=session,
+                max_items=8,
+            )
+            patient_memory_terms = memory_ctx.query_terms
+            patient_memory_block = memory_ctx.generation_block
+            trace["patient_id"] = normalized_patient_id
+            trace["patient_memory_loci"] = memory_ctx.loci_count
+            if verbose and memory_ctx.loci_count:
+                print(
+                    f"[QueryEngine] Loaded {memory_ctx.loci_count} patient loci "
+                    f"for {normalized_patient_id}."
+                )
 
         # ── Step 1: Query Refinement/Rewriting ───────────────────────────────
         if verbose:
@@ -437,6 +512,7 @@ class QueryEngine:
                 visual_findings=visual_findings,
                 image_path=image_path,
                 recent_history=recent_history,
+                patient_memory_context=patient_memory_block,
             )
             if verbose:
                 print(f"  [Rewritten] {retrieval_query}")
@@ -459,6 +535,11 @@ class QueryEngine:
             
             if verbose:
                 print(f"  [Refined] {retrieval_query}")
+
+        if patient_memory_terms:
+            retrieval_query = self._merge_query_signals([patient_memory_terms, retrieval_query], max_terms=18)
+            if verbose:
+                print(f"  [Refined+PatientMemory] {retrieval_query}")
 
         # Always enrich retrieval query with high-confidence persistent session terms.
         if session_enabled and session is not None and session.has_context(threshold=0.3, include_provisional=True):
@@ -489,6 +570,8 @@ class QueryEngine:
 
         raw_augmented_query = raw_query
         raw_signal_parts: List[str] = [raw_query]
+        if patient_memory_terms:
+            raw_signal_parts.insert(0, patient_memory_terms)
         if self._is_context_light_followup(raw_query):
             last_substantive = self._last_substantive_user_query(recent_history, raw_query)
             if last_substantive:
@@ -532,6 +615,7 @@ class QueryEngine:
             refined_query=retrieval_query,
             session=session,
             recent_queries=recent_history,
+            memory_terms=patient_memory_terms,
         )
         rerank_query = self.generator.apply_symptom_sign_mapping_to_query(
             raw_query=raw_query,
@@ -609,6 +693,7 @@ class QueryEngine:
             raw_query=raw_query,
             context_docs=context_docs,
             session_state=session if session_enabled else None,
+            patient_memory_context=patient_memory_block,
             correction_context=None,
             patient_profile=patient_profile,
             recent_history=recent_history,
@@ -665,6 +750,7 @@ class QueryEngine:
                 context_docs,
                 correction_context=flagged,
                 session_state=session if session_enabled else None,
+                patient_memory_context=patient_memory_block,
                 patient_profile=patient_profile,
                 recent_history=recent_history,
                 visual_findings=visual_findings,
@@ -701,6 +787,7 @@ class QueryEngine:
             answer = self.generator.apply_abstention_disclaimer(answer, grounding)
 
         # ── Step 6: Extract Entities & Update Session State ──────────────────
+        entities: list[ClinicalEntity] = []
         if session_enabled and session is not None:
             entities = self.generator.extract_entities_from_turn(
                 query_text=raw_query,
@@ -722,6 +809,30 @@ class QueryEngine:
                 ctx = session.to_query_context()
                 if ctx:
                     print(f"[Session] Updated context: {ctx}")
+
+            memory_verdicts = {"PASS", "PARTIAL", "FAST MODE (Unverified)"}
+            if normalized_patient_id and self.patient_memory_store.enabled and grounding.get("verdict") in memory_verdicts:
+                self.patient_memory_store.record_turn(
+                    patient_id=normalized_patient_id,
+                    session_id=session.session_id,
+                    turn_id=current_turn,
+                    entities=entities,
+                    session_state=session,
+                )
+                trace["patient_memory_written"] = len(entities)
+                try:
+                    clinician_summary_path = self.patient_memory_store.export_clinician_summary(
+                        patient_id=normalized_patient_id,
+                        session_id=session.session_id,
+                        turn_id=current_turn,
+                        entities=entities,
+                        session_state=session,
+                        conversation_date=datetime.utcnow().date().isoformat(),
+                    )
+                    trace["clinician_summary_path"] = str(clinician_summary_path)
+                    trace["conversation_date"] = datetime.utcnow().date().isoformat()
+                except Exception as e:
+                    trace["clinician_summary_error"] = str(e)
 
         trace["visual_findings"] = visual_findings
         trace["time"] = time.time() - start_time
@@ -971,7 +1082,7 @@ class QueryEngine:
         self._active_sessions.clear()
         print("[QueryEngine] Session cache cleared.")
 
-    def get_session_info(self, session_id: str) -> Optional[dict]:
+    def get_session_info(self, session_id: str, patient_id: Optional[str] = None) -> Optional[dict]:
         """Get summary of session state for debugging."""
         if not self.enable_session_state:
             return None
@@ -985,7 +1096,7 @@ class QueryEngine:
                     return None
         if session:
             retrieval_context = session.to_query_context(include_provisional=True)
-            return {
+            payload = {
                 "session_id": session.session_id,
                 "turns": session.total_turns,
                 "anatomy": session.anatomy_of_interest.value if session.anatomy_of_interest else None,
@@ -994,7 +1105,32 @@ class QueryEngine:
                 "query_terms": session.to_query_terms(include_provisional=True),
                 "session_json": session.to_dict(),
             }
+            normalized_patient_id = (patient_id or "").strip()
+            if normalized_patient_id and self.patient_memory_store.enabled:
+                patient_summary = self.patient_memory_store.get_patient_summary(normalized_patient_id, max_items=6)
+                patient_summary["backend"] = self.patient_memory_backend
+                patient_summary["enabled"] = self.patient_memory_enabled
+                payload["patient_memory"] = patient_summary
+
+                try:
+                    payload["clinician_summary"] = self.patient_memory_store.build_clinician_summary(
+                        patient_id=normalized_patient_id,
+                        session_id=session.session_id,
+                        turn_id=session.total_turns,
+                        entities=[],
+                        session_state=session,
+                        conversation_date=datetime.utcnow().date().isoformat(),
+                    )
+                except Exception:
+                    payload["clinician_summary"] = None
+            return payload
         return None
+
+    def get_patient_memory_info(self, patient_id: str) -> Optional[dict]:
+        normalized_patient_id = (patient_id or "").strip()
+        if not normalized_patient_id or not self.patient_memory_store.enabled:
+            return None
+        return self.patient_memory_store.get_patient_summary(normalized_patient_id, max_items=6)
 
 
 # ─── CLI Quick Test ─────────────────────────────────────────────────────────
